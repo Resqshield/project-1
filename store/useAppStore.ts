@@ -15,6 +15,8 @@ interface AppState {
 
   activeLayers: Set<LayerId>;
   toggleLayer: (id: LayerId) => void;
+  /** Last toggle action — drives the layer toast + map pop-in animation. */
+  lastLayerEvent: { id: LayerId; on: boolean; at: number } | null;
 
   selectedDistrictId: string | null;
   selectDistrict: (id: string | null) => void;
@@ -42,12 +44,14 @@ export const useAppStore = create<AppState>((set) => ({
   setBasemapMode: (m) => set({ basemapMode: m }),
 
   activeLayers: defaultLayers,
+  lastLayerEvent: null,
   toggleLayer: (id) =>
     set((s) => {
       const next = new Set(s.activeLayers);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return { activeLayers: next };
+      const on = !next.has(id);
+      if (on) next.add(id);
+      else next.delete(id);
+      return { activeLayers: next, lastLayerEvent: { id, on, at: Date.now() } };
     }),
 
   selectedDistrictId: null,

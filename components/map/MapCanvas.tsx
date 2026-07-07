@@ -67,6 +67,96 @@ const SATELLITE_STYLE: any = {
   layers: [{ id: 'esri', type: 'raster', source: 'esri' }],
 };
 
+/**
+ * Final paint values per map layer — single source of truth shared by
+ * ensureOverlays (initial state) and the pop-in animator (tween targets).
+ * Expressions are multiplied by a 0→1 factor during the animation, which is
+ * valid MapLibre expression algebra: ['*', f, <interpolate…>].
+ */
+const PAINT_TARGETS: Record<string, { opacity: Record<string, any>; radius?: Record<string, any> }> = {
+  'districts-fill': {
+    opacity: {
+      'fill-opacity': [
+        'interpolate', ['linear'], ['coalesce', ['feature-state', 'score'], 0],
+        0, 0.12, 40, 0.3, 70, 0.48, 100, 0.58,
+      ],
+    },
+  },
+  'districts-line': { opacity: { 'line-opacity': 1 } },
+  'risk-centroid-circles': {
+    opacity: { 'circle-opacity': 0.55, 'circle-stroke-opacity': 0.9 },
+    radius: { 'circle-radius': ['interpolate', ['linear'], ['get', 'score'], 0, 8, 100, 30] },
+  },
+  'rainfall-circles': {
+    opacity: {
+      'circle-opacity': ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 0.5, 0.25, 5, 0.5, 15, 0.75],
+    },
+    radius: { 'circle-radius': ['interpolate', ['linear'], ['get', 'intensity'], 0, 4, 2, 14, 8, 30, 20, 52] },
+  },
+  'alert-halo': { opacity: { 'circle-opacity': 0.18 }, radius: { 'circle-radius': 22 } },
+  'alert-dots': { opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 1 }, radius: { 'circle-radius': 7 } },
+  'quake-circles': {
+    opacity: { 'circle-opacity': 0.75, 'circle-stroke-opacity': 1 },
+    radius: { 'circle-radius': ['interpolate', ['linear'], ['get', 'mag'], 2, 4, 5, 12, 7, 24] },
+  },
+  'gauge-circles': {
+    opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 0.7 },
+    radius: { 'circle-radius': 6 },
+  },
+  'infra-circles': {
+    opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 1 },
+    radius: { 'circle-radius': 5.5 },
+  },
+  'gibs-satellite': { opacity: { 'raster-opacity': 0.85 } },
+};
+
+/** Which map layers belong to each toggleable UI layer. */
+const UI_LAYER_MAP: Record<string, string[]> = {
+  risk: ['districts-fill', 'districts-line', 'risk-centroid-circles'],
+  rainfall: ['rainfall-circles'],
+  alerts: ['alert-halo', 'alert-dots'],
+  quakes: ['quake-circles'],
+  gauges: ['gauge-circles'],
+  infrastructure: ['infra-circles'],
+  satellite: ['gibs-satellite'],
+};
+
+const scale = (f: number, v: any) => (typeof v === 'number' ? v * f : (['*', f, v] as any));
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+/** Slight overshoot — makes markers "pop" as they land. */
+const easeOutBack = (t: number) => 1 + 2.2 * Math.pow(t - 1, 3) + 1.2 * Math.pow(t - 1, 2);
+
+/** Tween a map layer's opacity (ease-out) and radius (overshoot pop) from 0 → target. */
+function animateLayerIn(map: MLMap, layerId: string, duration = 650): () => void {
+  const target = PAINT_TARGETS[layerId];
+  if (!target || !map.getLayer(layerId)) return () => {};
+  let raf = 0;
+  const t0 = performance.now();
+
+  const frame = (now: number) => {
+    if (!map.getLayer(layerId)) return;
+    const t = Math.min(1, (now - t0) / duration);
+    for (const [prop, v] of Object.entries(target.opacity)) {
+      map.setPaintProperty(layerId, prop as any, scale(easeOutCubic(t), v));
+    }
+    if (target.radius) {
+      for (const [prop, v] of Object.entries(target.radius)) {
+        map.setPaintProperty(layerId, prop as any, scale(Math.max(0.001, easeOutBack(t)), v));
+      }
+    }
+    if (t < 1) raf = requestAnimationFrame(frame);
+  };
+  raf = requestAnimationFrame(frame);
+
+  return () => {
+    cancelAnimationFrame(raf);
+    // Snap to exact final values on cancel/complete.
+    if (!map.getLayer(layerId)) return;
+    for (const [prop, v] of Object.entries(target.opacity)) map.setPaintProperty(layerId, prop as any, v);
+    if (target.radius) for (const [prop, v] of Object.entries(target.radius)) map.setPaintProperty(layerId, prop as any, v);
+  };
+}
+
 interface Props {
   risk: RiskScore[] | null;
   rain: RainPoint[] | null;

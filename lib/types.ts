@@ -92,6 +92,13 @@ export interface Shelter {
   tier: DataTier;
 }
 
+export interface LegendItem {
+  color: string;
+  label: string;
+  /** 'dot' = point marker, 'fill' = area fill, 'size' = graduated size cue */
+  shape: 'dot' | 'fill' | 'size';
+}
+
 export interface LayerMeta {
   id: LayerId;
   label: string;
@@ -99,6 +106,8 @@ export interface LayerMeta {
   tier: DataTier;
   description: string;
   defaultOn: boolean;
+  /** How to read this layer — rendered in the panel and the toggle toast. */
+  legend: LegendItem[];
 }
 
 export type LayerId =
