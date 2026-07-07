@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  height: 100%;
+  overscroll-behavior: none;
+}
+
+/* MapLibre chrome, re-skinned for the dark glass aesthetic */
+.maplibregl-ctrl-group {
+  background: rgba(17, 24, 39, 0.85) !important;
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.maplibregl-ctrl-group button {
+  background: transparent !important;
+}
+.maplibregl-ctrl-group button:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.maplibregl-ctrl-group button span {
+  filter: invert(0.9) brightness(1.4);
+}
+.maplibregl-ctrl-attrib {
+  background: rgba(10, 14, 26, 0.6) !important;
+  color: #8b98b8 !important;
+  font-size: 10px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: #8b98b8 !important;
+}
+
+.veg-popup .maplibregl-popup-content {
+  background: rgba(17, 24, 39, 0.95);
+  color: #cbd5e8;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 12px;
+  line-height: 1.5;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+.veg-popup .maplibregl-popup-tip {
+  border-top-color: rgba(17, 24, 39, 0.95) !important;
+  border-bottom-color: rgba(17, 24, 39, 0.95) !important;
+}
+
+/* Range slider */
+.veg-range {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 9999px;
+  background: linear-gradient(to right, #0ea5e9, #38bdf8);
+  outline: none;
+  cursor: pointer;
+}
+.veg-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f8fafc;
+  border: 2px solid #0ea5e9;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+.veg-range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f8fafc;
+  border: 2px solid #0ea5e9;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+}
+.veg-range:focus-visible {
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.4);
+}
+
+/* Subtle scrollbars for the glass panels */
+aside::-webkit-scrollbar {
+  width: 6px;
+}
+aside::-webkit-scrollbar-thumb {
+  background: rgba(139, 152, 184, 0.3);
+  border-radius: 9999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

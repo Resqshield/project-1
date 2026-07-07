@@ -1,0 +1,60 @@
+import type { LayerMeta } from './types';
+
+export const LAYERS: LayerMeta[] = [
+  {
+    id: 'risk',
+    label: 'Composite risk index',
+    group: 'Hazards',
+    tier: 'live',
+    description: 'Platform-computed district risk from live rainfall × terrain susceptibility × exposure. Weights are published in the methodology.',
+    defaultOn: true,
+  },
+  {
+    id: 'rainfall',
+    label: 'Rainfall (obs + 72 h forecast)',
+    group: 'Hazards',
+    tier: 'live',
+    description: 'Open-Meteo multi-model rainfall per district. Scrub the timeline to play the next 72 hours.',
+    defaultOn: true,
+  },
+  {
+    id: 'alerts',
+    label: 'Hazard alerts',
+    group: 'Hazards',
+    tier: 'live',
+    description: 'GDACS global disaster alerts for the region. Production target: NDMA SACHET CAP feed.',
+    defaultOn: true,
+  },
+  {
+    id: 'quakes',
+    label: 'Earthquakes (7 days)',
+    group: 'Hazards',
+    tier: 'live',
+    description: 'USGS feed, filtered to peninsular India and surrounding seas.',
+    defaultOn: false,
+  },
+  {
+    id: 'gauges',
+    label: 'River gauges & dams',
+    group: 'Water',
+    tier: 'sample',
+    description: 'Real CWC/KSEB station locations with illustrative readings — wire the CWC adapter for live levels.',
+    defaultOn: true,
+  },
+  {
+    id: 'infrastructure',
+    label: 'Hospitals & shelters',
+    group: 'People & Infrastructure',
+    tier: 'sample',
+    description: 'Key medical facilities and relief-camp sites. Production target: OSM extract + KSDMA camp registry.',
+    defaultOn: false,
+  },
+  {
+    id: 'satellite',
+    label: 'Satellite (NASA GIBS)',
+    group: 'Imagery',
+    tier: 'live',
+    description: 'VIIRS true-colour imagery, updated daily. Cloud bands reveal active monsoon systems.',
+    defaultOn: false,
+  },
+];
