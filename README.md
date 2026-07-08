@@ -13,6 +13,8 @@ Live rainfall · hazard alerts · river levels · landslide susceptibility · po
 </div>
 
 ---
+<img width="1437" height="812" alt="Screenshot 2026-07-08 at 13 47 09" src="https://github.com/user-attachments/assets/926bf42f-3f58-41bd-b462-d52bc489ef68" />
+
 
 ## Table of contents
 
