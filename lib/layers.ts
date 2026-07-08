@@ -20,9 +20,9 @@ export const LAYERS: LayerMeta[] = [
     label: 'Rainfall (obs + 72 h forecast)',
     group: 'Hazards',
     tier: 'live',
-    description: 'Glowing blue halos — size & brightness = rain intensity (mm/h) at the timeline hour. Press play on the timeline to watch systems move.',
+    description: 'Rain icons appear where it is raining at the timeline hour — icon size = intensity (mm/h). Press play on the timeline to watch systems move.',
     defaultOn: true,
-    legend: [{ color: '#38bdf8', label: 'halo size = mm/h at timeline hour', shape: 'size' }],
+    legend: [{ color: '#38bdf8', label: 'icon size = mm/h at timeline hour', shape: 'size' }],
   },
   {
     id: 'alerts',

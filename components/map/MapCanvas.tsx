@@ -87,38 +87,27 @@ const PAINT_TARGETS: Record<string, { opacity: Record<string, any>; radius?: Rec
     opacity: { 'circle-opacity': 0.55, 'circle-stroke-opacity': 0.9 },
     radius: { 'circle-radius': ['interpolate', ['linear'], ['get', 'score'], 0, 8, 100, 30] },
   },
-  'rainfall-circles': {
+  'rainfall-icons': {
     opacity: {
-      'circle-opacity': ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 0.5, 0.25, 5, 0.5, 15, 0.75],
+      'icon-opacity': ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 0.3, 0.75, 5, 1],
     },
-    radius: { 'circle-radius': ['interpolate', ['linear'], ['get', 'intensity'], 0, 4, 2, 14, 8, 30, 20, 52] },
   },
   'alert-halo': { opacity: { 'circle-opacity': 0.18 }, radius: { 'circle-radius': 22 } },
-  'alert-dots': { opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 1 }, radius: { 'circle-radius': 7 } },
-  'quake-circles': {
-    opacity: { 'circle-opacity': 0.75, 'circle-stroke-opacity': 1 },
-    radius: { 'circle-radius': ['interpolate', ['linear'], ['get', 'mag'], 2, 4, 5, 12, 7, 24] },
-  },
-  'gauge-circles': {
-    opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 0.7 },
-    // size grows with discharge anomaly (× normal flow)
-    radius: { 'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'ratio'], 1], 0, 5, 1, 6, 3, 10, 6, 14] },
-  },
-  'infra-circles': {
-    opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 1 },
-    radius: { 'circle-radius': 5.5 },
-  },
+  'alert-icons': { opacity: { 'icon-opacity': 1 } },
+  'quake-icons': { opacity: { 'icon-opacity': 0.95 } },
+  'gauge-icons': { opacity: { 'icon-opacity': 1 } },
+  'infra-icons': { opacity: { 'icon-opacity': 1 } },
   'gibs-satellite': { opacity: { 'raster-opacity': 0.85 } },
 };
 
 /** Which map layers belong to each toggleable UI layer. */
 const UI_LAYER_MAP: Record<string, string[]> = {
   risk: ['districts-fill', 'districts-line', 'risk-centroid-circles'],
-  rainfall: ['rainfall-circles'],
-  alerts: ['alert-halo', 'alert-dots'],
-  quakes: ['quake-circles'],
-  gauges: ['gauge-circles'],
-  infrastructure: ['infra-circles'],
+  rainfall: ['rainfall-icons'],
+  alerts: ['alert-halo', 'alert-icons'],
+  quakes: ['quake-icons'],
+  gauges: ['gauge-icons'],
+  infrastructure: ['infra-icons'],
   satellite: ['gibs-satellite'],
 };
 
@@ -213,8 +202,17 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
     mapRef.current = map;
 
     map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
-    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+    // bottom-right so it never collides with the timeline in the bottom-left
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
     map.on('error', (e: any) => console.warn('[vegvisir] map warning:', e?.error?.message ?? e));
+
+    // All marker sprites are canvas-drawn on demand, per style — basemap
+    // swaps can never lose them and there are zero image assets to load.
+    map.on('styleimagemissing', (e: any) => {
+      if (map.hasImage(e.id)) return;
+      const img = e.id === 'rain-icon' ? makeRainIcon(64) : makeMapIcon(e.id, 64);
+      if (img) map.addImage(e.id, img, { pixelRatio: 2 });
+    });
 
     // Re-attach overlays after EVERY style load (boot, upgrade, mode switch).
     // ensureOverlays is idempotent, so calling it from multiple paths is safe.
@@ -402,13 +400,39 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
 
     vis(['districts-fill', 'districts-line'], activeLayers.has('risk'));
     vis(['risk-centroid-circles'], activeLayers.has('risk') && !boundaries);
-    vis(['rainfall-circles'], activeLayers.has('rainfall'));
-    vis(['alert-halo', 'alert-dots'], activeLayers.has('alerts'));
-    vis(['quake-circles'], activeLayers.has('quakes'));
-    vis(['gauge-circles'], activeLayers.has('gauges'));
-    vis(['infra-circles'], activeLayers.has('infrastructure'));
+    vis(['rainfall-icons'], activeLayers.has('rainfall'));
+    vis(['alert-halo', 'alert-icons'], activeLayers.has('alerts'));
+    vis(['quake-icons'], activeLayers.has('quakes'));
+    vis(['gauge-icons'], activeLayers.has('gauges'));
+    vis(['infra-icons'], activeLayers.has('infrastructure'));
     vis(['gibs-satellite'], activeLayers.has('satellite'));
   }, [activeLayers, ready, boundaries, epoch]);
+
+  /* ----------------------------- alert pulse ------------------------------- */
+  // Active alerts breathe — a continuous soft radar pulse on the halo layer.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !activeLayers.has('alerts')) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    let raf = 0;
+    const loop = (t: number) => {
+      if (map.getLayer('alert-halo')) {
+        const k = (Math.sin(t / 480) + 1) / 2; // 0→1, ~3 s period
+        map.setPaintProperty('alert-halo', 'circle-radius', 16 + k * 14);
+        map.setPaintProperty('alert-halo', 'circle-opacity', 0.3 - 0.24 * k);
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => {
+      cancelAnimationFrame(raf);
+      if (map.getLayer('alert-halo')) {
+        map.setPaintProperty('alert-halo', 'circle-radius', 22);
+        map.setPaintProperty('alert-halo', 'circle-opacity', 0.18);
+      }
+    };
+  }, [ready, epoch, activeLayers]);
 
   /* --------------------------- layer pop-in animation ------------------------ */
   // Runs AFTER the visibility effect (declared above) has made the layer
@@ -489,16 +513,17 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
       popup(`<strong>${esc(p.name)}</strong><br/>${esc(p.type)} · <em>sample data</em>`, e.lngLat);
     };
 
-    const hoverables = ['districts-fill', 'risk-centroid-circles', 'alert-dots', 'quake-circles', 'gauge-circles', 'infra-circles'];
+    const hoverables = ['districts-fill', 'risk-centroid-circles', 'rainfall-icons', 'alert-icons', 'quake-icons', 'gauge-icons', 'infra-icons'];
     const enter = () => (map.getCanvas().style.cursor = 'pointer');
     const leave = () => (map.getCanvas().style.cursor = '');
 
     map.on('click', 'districts-fill', clickDistrict);
     map.on('click', 'risk-centroid-circles', clickDistrict);
-    map.on('click', 'alert-dots', onAlert);
-    map.on('click', 'quake-circles', onQuake);
-    map.on('click', 'gauge-circles', onGauge);
-    map.on('click', 'infra-circles', onInfra);
+    map.on('click', 'rainfall-icons', clickDistrict);
+    map.on('click', 'alert-icons', onAlert);
+    map.on('click', 'quake-icons', onQuake);
+    map.on('click', 'gauge-icons', onGauge);
+    map.on('click', 'infra-icons', onInfra);
     hoverables.forEach((l) => {
       map.on('mouseenter', l, enter);
       map.on('mouseleave', l, leave);
@@ -507,10 +532,11 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
     return () => {
       map.off('click', 'districts-fill', clickDistrict);
       map.off('click', 'risk-centroid-circles', clickDistrict);
-      map.off('click', 'alert-dots', onAlert);
-      map.off('click', 'quake-circles', onQuake);
-      map.off('click', 'gauge-circles', onGauge);
-      map.off('click', 'infra-circles', onInfra);
+      map.off('click', 'rainfall-icons', clickDistrict);
+      map.off('click', 'alert-icons', onAlert);
+      map.off('click', 'quake-icons', onQuake);
+      map.off('click', 'gauge-icons', onGauge);
+      map.off('click', 'infra-icons', onInfra);
       hoverables.forEach((l) => {
         map.off('mouseenter', l, enter);
         map.off('mouseleave', l, leave);
@@ -628,17 +654,22 @@ function ensureOverlays(map: MLMap) {
     },
   });
 
-  // Rainfall
+  // Rainfall — cloud/rain icon, only where it's actually raining at the
+  // scrubbed hour; icon grows with intensity (mm/h).
   addSource('rainfall', { type: 'geojson', data: empty });
   addLayer({
-    id: 'rainfall-circles',
-    type: 'circle',
+    id: 'rainfall-icons',
+    type: 'symbol',
     source: 'rainfall',
+    filter: ['>=', ['get', 'intensity'], 0.2],
+    layout: {
+      'icon-image': 'rain-icon',
+      'icon-size': ['interpolate', ['linear'], ['get', 'intensity'], 0.2, 0.55, 2, 0.8, 8, 1.1, 20, 1.5],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+    },
     paint: {
-      'circle-color': '#38bdf8',
-      'circle-blur': 0.6,
-      'circle-opacity': ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 0.5, 0.25, 5, 0.5, 15, 0.75],
-      'circle-radius': ['interpolate', ['linear'], ['get', 'intensity'], 0, 4, 2, 14, 8, 30, 20, 52],
+      'icon-opacity': ['interpolate', ['linear'], ['get', 'intensity'], 0, 0, 0.3, 0.75, 5, 1],
     },
   });
 
@@ -651,49 +682,50 @@ function ensureOverlays(map: MLMap) {
     paint: { 'circle-color': ['get', 'color'], 'circle-opacity': 0.18, 'circle-radius': 22, 'circle-blur': 0.4 },
   });
   addLayer({
-    id: 'alert-dots',
-    type: 'circle',
+    id: 'alert-icons',
+    type: 'symbol',
     source: 'alerts',
-    paint: {
-      'circle-color': ['get', 'color'],
-      'circle-radius': 7,
-      'circle-stroke-color': '#05070d',
-      'circle-stroke-width': 2,
+    layout: {
+      'icon-image': ['concat', 'alert-', ['get', 'severity']],
+      'icon-size': 0.7,
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
     },
+    paint: { 'icon-opacity': 1 },
   });
 
-  // Quakes
+  // Quakes — epicenter badge scaled by magnitude
   addSource('quakes', { type: 'geojson', data: empty });
   addLayer({
-    id: 'quake-circles',
-    type: 'circle',
+    id: 'quake-icons',
+    type: 'symbol',
     source: 'quakes',
-    layout: { visibility: 'none' },
-    paint: {
-      'circle-color': '#a78bfa',
-      'circle-opacity': 0.75,
-      'circle-radius': ['interpolate', ['linear'], ['get', 'mag'], 2, 4, 5, 12, 7, 24],
-      'circle-stroke-color': '#05070d',
-      'circle-stroke-width': 1.5,
+    layout: {
+      'icon-image': 'quake-icon',
+      'icon-size': ['interpolate', ['linear'], ['get', 'mag'], 2, 0.5, 5, 0.8, 7, 1.1],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      visibility: 'none',
     },
+    paint: { 'icon-opacity': 0.95 },
   });
 
-  // Rivers — LIVE GloFAS discharge (data pushed by the rivers effect)
+  // Rivers — wave badge, ring colour = status, size grows with anomaly
   addSource('gauges', { type: 'geojson', data: empty });
   addLayer({
-    id: 'gauge-circles',
-    type: 'circle',
+    id: 'gauge-icons',
+    type: 'symbol',
     source: 'gauges',
-    paint: {
-      'circle-color': ['coalesce', ['get', 'status'], '#22c55e'],
-      'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'ratio'], 1], 0, 5, 1, 6, 3, 10, 6, 14],
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 1.2,
-      'circle-stroke-opacity': 0.7,
+    layout: {
+      'icon-image': ['concat', 'gauge-', ['coalesce', ['get', 'statusLabel'], 'normal']],
+      'icon-size': ['interpolate', ['linear'], ['coalesce', ['get', 'ratio'], 1], 0, 0.5, 1, 0.6, 3, 0.85, 6, 1.05],
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
     },
+    paint: { 'icon-opacity': 1 },
   });
 
-  // Infrastructure (sample tier)
+  // Infrastructure — hospital cross / shelter house / fire flame badges
   addSource('infra', {
     type: 'geojson',
     data: {
@@ -706,17 +738,188 @@ function ensureOverlays(map: MLMap) {
     },
   });
   addLayer({
-    id: 'infra-circles',
-    type: 'circle',
+    id: 'infra-icons',
+    type: 'symbol',
     source: 'infra',
-    layout: { visibility: 'none' },
-    paint: {
-      'circle-color': ['match', ['get', 'type'], 'hospital', '#f472b6', 'shelter', '#34d399', 'fire', '#fb923c', '#94a3b8'],
-      'circle-radius': 5.5,
-      'circle-stroke-color': '#05070d',
-      'circle-stroke-width': 1.5,
+    layout: {
+      'icon-image': ['concat', 'infra-', ['get', 'type']],
+      'icon-size': 0.6,
+      'icon-allow-overlap': true,
+      'icon-ignore-placement': true,
+      visibility: 'none',
     },
+    paint: { 'icon-opacity': 1 },
   });
+}
+
+/** Cloud-with-raindrops sprite, drawn on a canvas (no asset, no async). */
+function makeRainIcon(size: number): ImageData {
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
+  const s = size / 64;
+
+  // soft glow so the icon reads on any basemap
+  ctx.shadowColor = 'rgba(56, 189, 248, 0.55)';
+  ctx.shadowBlur = 7 * s;
+
+  // cloud — three lobes + base
+  ctx.fillStyle = 'rgba(191, 219, 254, 0.98)';
+  ctx.beginPath();
+  ctx.arc(21 * s, 27 * s, 11 * s, 0, Math.PI * 2);
+  ctx.arc(33 * s, 20 * s, 13 * s, 0, Math.PI * 2);
+  ctx.arc(45 * s, 28 * s, 10 * s, 0, Math.PI * 2);
+  ctx.rect(21 * s, 26 * s, 24 * s, 12 * s);
+  ctx.fill();
+
+  // raindrops
+  ctx.shadowBlur = 4 * s;
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 4.5 * s;
+  ctx.lineCap = 'round';
+  for (const [x1, y1, x2, y2] of [
+    [22, 44, 18, 55],
+    [34, 46, 30, 58],
+    [46, 44, 42, 55],
+  ]) {
+    ctx.beginPath();
+    ctx.moveTo(x1 * s, y1 * s);
+    ctx.lineTo(x2 * s, y2 * s);
+    ctx.stroke();
+  }
+  return ctx.getImageData(0, 0, size, size);
+}
+
+/**
+ * Badge-icon factory — dark glass disc, coloured ring + glyph, soft glow.
+ * One visual language for every marker; drawn on canvas so there are no
+ * assets, no async loading, and crisp rendering at any DPI.
+ */
+const ICON_COLORS: Record<string, string> = {
+  'gauge-normal': '#22c55e',
+  'gauge-elevated': '#f97316',
+  'gauge-high': '#ef4444',
+  'alert-green': '#22c55e',
+  'alert-yellow': '#eab308',
+  'alert-orange': '#f97316',
+  'alert-red': '#ef4444',
+  'quake-icon': '#a78bfa',
+  'infra-hospital': '#f472b6',
+  'infra-shelter': '#34d399',
+  'infra-fire': '#fb923c',
+  'infra-police': '#94a3b8',
+};
+
+function makeMapIcon(id: string, size: number): ImageData | null {
+  const color = ICON_COLORS[id];
+  if (!color) return null;
+
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const ctx = c.getContext('2d')!;
+  const s = size / 64;
+  const cx = 32 * s;
+  const cy = 32 * s;
+
+  // glowing dark disc + colour ring
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8 * s;
+  ctx.fillStyle = 'rgba(8, 12, 22, 0.92)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, 24 * s, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 3.5 * s;
+  ctx.stroke();
+
+  // glyph
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 3.5 * s;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (id.startsWith('gauge-')) {
+    // two water waves
+    for (const y of [28, 38]) {
+      ctx.beginPath();
+      ctx.moveTo(19 * s, y * s);
+      ctx.quadraticCurveTo(25.5 * s, (y - 7) * s, 32 * s, y * s);
+      ctx.quadraticCurveTo(38.5 * s, (y + 7) * s, 45 * s, y * s);
+      ctx.stroke();
+    }
+  } else if (id.startsWith('alert-')) {
+    // warning triangle + exclamation
+    ctx.beginPath();
+    ctx.moveTo(32 * s, 17 * s);
+    ctx.lineTo(45 * s, 42 * s);
+    ctx.lineTo(19 * s, 42 * s);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(32 * s, 26 * s);
+    ctx.lineTo(32 * s, 33 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(32 * s, 38 * s, 1.8 * s, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (id === 'quake-icon') {
+    // seismograph zigzag
+    ctx.beginPath();
+    ctx.moveTo(16 * s, 32 * s);
+    ctx.lineTo(24 * s, 32 * s);
+    ctx.lineTo(28 * s, 21 * s);
+    ctx.lineTo(34 * s, 43 * s);
+    ctx.lineTo(38 * s, 27 * s);
+    ctx.lineTo(41 * s, 32 * s);
+    ctx.lineTo(48 * s, 32 * s);
+    ctx.stroke();
+  } else if (id === 'infra-hospital') {
+    // medical cross
+    ctx.beginPath();
+    ctx.moveTo(32 * s, 21 * s);
+    ctx.lineTo(32 * s, 43 * s);
+    ctx.moveTo(21 * s, 32 * s);
+    ctx.lineTo(43 * s, 32 * s);
+    ctx.stroke();
+  } else if (id === 'infra-shelter') {
+    // house
+    ctx.beginPath();
+    ctx.moveTo(19 * s, 32 * s);
+    ctx.lineTo(32 * s, 20 * s);
+    ctx.lineTo(45 * s, 32 * s);
+    ctx.moveTo(23 * s, 30 * s);
+    ctx.lineTo(23 * s, 43 * s);
+    ctx.lineTo(41 * s, 43 * s);
+    ctx.lineTo(41 * s, 30 * s);
+    ctx.stroke();
+  } else if (id === 'infra-fire') {
+    // flame
+    ctx.beginPath();
+    ctx.moveTo(32 * s, 18 * s);
+    ctx.bezierCurveTo(40 * s, 26 * s, 44 * s, 32 * s, 44 * s, 37 * s);
+    ctx.bezierCurveTo(44 * s, 43.5 * s, 38.5 * s, 46 * s, 32 * s, 46 * s);
+    ctx.bezierCurveTo(25.5 * s, 46 * s, 20 * s, 43.5 * s, 20 * s, 37 * s);
+    ctx.bezierCurveTo(20 * s, 32 * s, 24 * s, 26 * s, 32 * s, 18 * s);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(32 * s, 38 * s, 4 * s, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (id === 'infra-police') {
+    // shield
+    ctx.beginPath();
+    ctx.moveTo(32 * s, 19 * s);
+    ctx.lineTo(43 * s, 24 * s);
+    ctx.lineTo(43 * s, 33 * s);
+    ctx.quadraticCurveTo(43 * s, 42 * s, 32 * s, 45 * s);
+    ctx.quadraticCurveTo(21 * s, 42 * s, 21 * s, 33 * s);
+    ctx.lineTo(21 * s, 24 * s);
+    ctx.closePath();
+    ctx.stroke();
+  }
+
+  return ctx.getImageData(0, 0, size, size);
 }
 
 function esc(s: unknown): string {

@@ -12,8 +12,9 @@ body {
   overscroll-behavior: none;
 }
 
-/* MapLibre chrome, re-skinned for the dark glass aesthetic */
-.maplibregl-ctrl-group {
+/* MapLibre chrome, re-skinned for the dark glass aesthetic.
+   High-specificity selectors — CSS chunk order differs between dev and prod. */
+.maplibregl-map .maplibregl-ctrl.maplibregl-ctrl-group {
   background: rgba(17, 24, 39, 0.85) !important;
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.18);
@@ -21,14 +22,22 @@ body {
   overflow: hidden;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
-.maplibregl-ctrl-group button {
+.maplibregl-map .maplibregl-ctrl-group button,
+.maplibregl-map .maplibregl-ctrl-group button:not(:disabled) {
   background: transparent !important;
+  border: none !important;
 }
-.maplibregl-ctrl-group button:hover {
+.maplibregl-map .maplibregl-ctrl-group button:hover {
   background: rgba(255, 255, 255, 0.08) !important;
 }
-.maplibregl-ctrl-group button span {
+.maplibregl-map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
   filter: invert(0.9) brightness(1.4);
+}
+.maplibregl-map .maplibregl-ctrl-scale {
+  background: rgba(10, 14, 26, 0.6) !important;
+  border-color: rgba(139, 152, 184, 0.5) !important;
+  color: #8b98b8 !important;
+  font-size: 10px !important;
 }
 .maplibregl-ctrl-attrib {
   background: rgba(10, 14, 26, 0.6) !important;

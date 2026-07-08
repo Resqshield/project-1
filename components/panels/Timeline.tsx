@@ -60,6 +60,12 @@ export default function Timeline() {
           aria-valuetext={label}
           className="veg-range w-full"
         />
+        <div className="mt-0.5 flex justify-between font-mono text-[9px] text-ink-400/70" aria-hidden>
+          <span>Now</span>
+          <span>+24h</span>
+          <span>+48h</span>
+          <span>+72h</span>
+        </div>
       </div>
     </div>
   );
