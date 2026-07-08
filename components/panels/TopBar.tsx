@@ -34,7 +34,7 @@ export default function TopBar() {
 
       <div className="mx-2 hidden h-5 w-px bg-white/10 md:block" />
 
-      <label className="relative flex-1 md:max-w-xs">
+      <label className="relative min-w-0 flex-1 md:w-52 md:flex-none">
         <span className="sr-only">Jump to district</span>
         <select
           value={selectedDistrictId ?? ''}

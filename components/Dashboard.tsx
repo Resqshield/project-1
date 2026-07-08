@@ -27,8 +27,11 @@ const MapCanvas = dynamic(() => import('@/components/map/MapCanvas'), {
 const GlobeIntro = dynamic(() => import('@/components/intro/GlobeIntro'), { ssr: false });
 
 /**
- * Dashboard — composition root. Feeds are fetched once here and flow down to
- * both the map and the panels, so every view of the same data agrees.
+ * Dashboard — composition root.
+ *
+ * The floating UI is split into INDEPENDENT anchored regions (left column,
+ * right detail panel, bottom bar) so no panel can push another around:
+ * opening the district drill-down never reflows the layer panel.
  */
 export default function Dashboard() {
   const introDone = useAppStore((s) => s.introDone);
@@ -42,45 +45,44 @@ export default function Dashboard() {
     <div className="fixed inset-0 overflow-hidden bg-ink-950">
       {!introDone && <GlobeIntro />}
 
-      <MapCanvas risk={risk.data} rain={rain.data} alerts={alerts.data} quakes={quakes.data} rivers={rivers.data} />
+      <MapCanvas
+        risk={risk.data}
+        rain={rain.data}
+        alerts={alerts.data}
+        quakes={quakes.data}
+        rivers={rivers.data}
+      />
 
-      {/* Floating UI — pointer-events pass through the wrapper to the map */}
-      <div className="pointer-events-none absolute inset-0 flex flex-col p-3 md:p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-3 md:flex-none">
-            <TopBar />
+      {/* Left column — brand bar + layer panel (never moves) */}
+      <div className="pointer-events-none absolute left-3 right-3 top-3 z-10 flex flex-col gap-3 md:left-4 md:right-auto md:top-4">
+        <TopBar />
+        <LayerPanel />
+      </div>
+
+      {/* Right — district drill-down: side panel on desktop, bottom sheet on mobile */}
+      <div className="pointer-events-none absolute inset-x-2 bottom-2 z-20 md:inset-x-auto md:bottom-auto md:right-4 md:top-4">
+        <DetailPanel risk={risk.data} rain={rain.data} rivers={rivers.data} />
+      </div>
+
+      {/* Bottom bar — timeline, status, ticker (right inset clears map controls) */}
+      <div className="pointer-events-none absolute bottom-3 left-3 right-14 z-10 space-y-2 md:bottom-4 md:left-4 md:right-20">
+        <div className="flex flex-col gap-2 md:flex-row md:items-end">
+          <div className="md:w-[26rem]">
+            <Timeline />
           </div>
-          <div className="hidden md:block">
-            <DetailPanel risk={risk.data} rain={rain.data} rivers={rivers.data} />
+          <div className="pointer-events-auto flex items-center gap-3 self-start rounded-lg border border-white/10 bg-ink-900/70 px-3 py-1.5 backdrop-blur-xl md:self-auto">
+            <FreshnessBadge updatedAt={rain.updatedAt} error={rain.error} />
+            <span className="text-ink-700" aria-hidden>·</span>
+            <a href="/methodology" className="font-mono text-[10px] text-ink-400 transition hover:text-accent">
+              methodology
+            </a>
+            <span className="text-ink-700" aria-hidden>·</span>
+            <span className="font-mono text-[10px] text-ink-400">
+              made by <span className="text-accent/80">AJ</span>
+            </span>
           </div>
         </div>
-
-        <div className="mt-3 flex min-h-0 flex-1 items-start justify-between gap-3">
-          <LayerPanel />
-          <div className="md:hidden">
-            <DetailPanel risk={risk.data} rain={rain.data} rivers={rivers.data} />
-          </div>
-        </div>
-
-        <div className="mt-3 space-y-2">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end">
-            <div className="md:max-w-md md:flex-1">
-              <Timeline />
-            </div>
-            <div className="pointer-events-auto flex items-center gap-3 self-start rounded-lg border border-white/10 bg-ink-900/70 px-3 py-1.5 backdrop-blur-xl md:self-auto">
-              <FreshnessBadge updatedAt={rain.updatedAt} error={rain.error} />
-              <span className="text-ink-700" aria-hidden>·</span>
-              <a href="/methodology" className="font-mono text-[10px] text-ink-400 transition hover:text-accent">
-                methodology
-              </a>
-              <span className="text-ink-700" aria-hidden>·</span>
-              <span className="font-mono text-[10px] text-ink-400">
-                made by <span className="text-accent/80">AJ</span>
-              </span>
-            </div>
-          </div>
-          <AlertTicker alerts={alerts.data} />
-        </div>
+        <AlertTicker alerts={alerts.data} />
       </div>
 
       <LayerToast />

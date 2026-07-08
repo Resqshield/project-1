@@ -36,7 +36,7 @@ export default function DetailPanel({ risk, rain, rivers }: Props) {
   return (
     <aside
       aria-label={`${district.name} district details`}
-      className="pointer-events-auto w-80 animate-slide-up overflow-y-auto rounded-2xl border border-white/10 bg-ink-900/80 p-4 shadow-2xl backdrop-blur-xl max-h-[70vh] md:max-h-[calc(100vh-180px)]"
+      className="pointer-events-auto w-full animate-slide-up overflow-y-auto rounded-2xl border border-white/10 bg-ink-900/90 p-4 shadow-2xl backdrop-blur-xl max-h-[58dvh] md:w-80 md:max-h-[calc(100dvh-2rem)] md:bg-ink-900/80"
     >
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>

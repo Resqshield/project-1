@@ -33,7 +33,7 @@ export default function LayerPanel() {
   return (
     <aside
       aria-label="Map layers"
-      className="pointer-events-auto max-h-[60vh] w-72 animate-slide-up overflow-y-auto rounded-2xl border border-white/10 bg-ink-900/70 p-4 shadow-2xl backdrop-blur-xl md:max-h-[calc(100vh-180px)]"
+      className="pointer-events-auto w-72 max-w-[calc(100vw-1.5rem)] animate-slide-up overflow-y-auto rounded-2xl border border-white/10 bg-ink-900/70 p-4 shadow-2xl backdrop-blur-xl max-h-[calc(100dvh-21rem)] md:max-h-[calc(100dvh-16rem)]"
     >
       <h2 className="mb-3 font-mono text-[10px] uppercase tracking-[0.25em] text-ink-400">Data layers</h2>
 
