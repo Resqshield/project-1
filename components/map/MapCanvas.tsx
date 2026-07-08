@@ -454,18 +454,21 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
         .setHTML(html)
         .addTo(map);
 
+    // Defence-in-depth: everything interpolated into popup HTML is escaped,
+    // numbers are coerced, and colours must match a strict hex allowlist —
+    // even though these values originate from our own normalization pipeline.
     const onAlert = (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
       popup(
-        `<strong>${esc(p.title)}</strong><br/><span style="color:${p.color}">● ${String(p.severity).toUpperCase()}</span> · ${esc(p.source)}`,
+        `<strong>${esc(p.title)}</strong><br/><span style="color:${safeColor(p.color)}">● ${esc(String(p.severity).toUpperCase())}</span> · ${esc(p.source)}`,
         e.lngLat
       );
     };
     const onQuake = (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
-      popup(`<strong>M${Number(p.mag).toFixed(1)}</strong> ${esc(p.place)}`, e.lngLat);
+      popup(`<strong>M${num(p.mag).toFixed(1)}</strong> ${esc(p.place)}`, e.lngLat);
     };
     const onGauge = (e: any) => {
       const p = e.features?.[0]?.properties;
@@ -473,9 +476,9 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
       const arrow = p.trend === 'rising' ? '↑ rising' : p.trend === 'falling' ? '↓ falling' : '→ steady';
       popup(
         `<strong>${esc(p.name)}</strong> · ${esc(p.river)}<br/>` +
-          `Discharge <strong>${p.discharge} m³/s</strong> (${arrow})<br/>` +
-          `<span style="color:${p.status}">● ${esc(p.statusLabel)}</span> — ${p.ratio}× the 31-day median (${p.median} m³/s)<br/>` +
-          `7-day forecast peak: ${p.forecastMax} m³/s<br/>` +
+          `Discharge <strong>${num(p.discharge)} m³/s</strong> (${arrow})<br/>` +
+          `<span style="color:${safeColor(p.status)}">● ${esc(p.statusLabel)}</span> — ${num(p.ratio)}× the 31-day median (${num(p.median)} m³/s)<br/>` +
+          `7-day forecast peak: ${num(p.forecastMax)} m³/s<br/>` +
           `<em>GloFAS via Open-Meteo</em>`,
         e.lngLat
       );
@@ -717,5 +720,17 @@ function ensureOverlays(map: MLMap) {
 }
 
 function esc(s: unknown): string {
-  return String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
+  return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+/** Coerce to a finite number (0 fallback) — never interpolate raw values. */
+function num(v: unknown): number {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+}
+
+/** Only #rgb/#rrggbb colours may enter a style attribute. */
+function safeColor(v: unknown): string {
+  const s = String(v ?? '');
+  return /^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s) ? s : '#64748b';
 }

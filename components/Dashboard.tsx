@@ -73,6 +73,10 @@ export default function Dashboard() {
               <a href="/methodology" className="font-mono text-[10px] text-ink-400 transition hover:text-accent">
                 methodology
               </a>
+              <span className="text-ink-700" aria-hidden>·</span>
+              <span className="font-mono text-[10px] text-ink-400">
+                made by <span className="text-accent/80">AJ</span>
+              </span>
             </div>
           </div>
           <AlertTicker alerts={alerts.data} />

@@ -59,7 +59,8 @@ export default function LayerPanel() {
                           : 'border-white/5 bg-white/[0.03] hover:translate-x-0.5 hover:bg-white/[0.07]'
                       }`}
                     >
-                      <span className="shrink-0 transition-transform duration-200 group-hover:scale-110">
+                      {/* no scale transform — scaling rasterizes the SVG and blurs it */}
+                      <span className="shrink-0">
                         <LayerIcon id={layer.id} active={on} />
                       </span>
                       <span className={`flex-1 text-xs transition-colors ${on ? 'text-white' : 'text-ink-200'}`}>

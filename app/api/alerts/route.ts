@@ -56,7 +56,8 @@ export async function GET() {
       { headers: { 'Cache-Control': 's-maxage=300, stale-while-revalidate=1800' } }
     );
   } catch (err) {
-    return NextResponse.json({ error: 'gdacs unavailable', detail: String(err) }, { status: 502 });
+    const detail = process.env.NODE_ENV === 'production' ? undefined : String(err);
+    return NextResponse.json({ error: 'gdacs unavailable', detail }, { status: 502 });
   }
 }
 

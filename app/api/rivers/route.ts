@@ -60,10 +60,8 @@ export async function GET() {
       { headers: { 'Cache-Control': 's-maxage=3600, stale-while-revalidate=21600' } }
     );
   } catch (err) {
-    return NextResponse.json(
-      { error: 'river discharge source unavailable', detail: String(err) },
-      { status: 502 }
-    );
+    const detail = process.env.NODE_ENV === 'production' ? undefined : String(err);
+    return NextResponse.json({ error: 'river discharge source unavailable', detail }, { status: 502 });
   }
 }
 

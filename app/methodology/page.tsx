@@ -45,15 +45,25 @@ amplification = 0.25 + 0.75 · rain-normalized`}
         <ul className="mt-3 space-y-3 text-sm leading-relaxed text-ink-200">
           <li>
             <strong className="text-emerald-400">LIVE</strong> — streamed from public feeds through
-            cached API routes: rainfall (Open-Meteo multi-model), hazard events (GDACS), earthquakes
-            (USGS), satellite imagery (NASA GIBS / VIIRS).
+            cached API routes: rainfall (Open-Meteo multi-model), river discharge (GloFAS/Copernicus
+            via the Open-Meteo Flood API, sampled at CWC station sites), hazard events (GDACS),
+            earthquakes (USGS), satellite imagery (NASA GIBS / VIIRS).
           </li>
           <li>
-            <strong className="text-amber-400">SAMPLE</strong> — real station and facility locations
-            with illustrative readings: river gauges & dams (CWC/KSEB stations pending a live
-            adapter), hospitals & shelters (pending OSM/KSDMA extraction).
+            <strong className="text-amber-400">SAMPLE</strong> — real facility locations with a
+            curated, illustrative list: hospitals & shelters (pending OSM/KSDMA extraction).
           </li>
         </ul>
+
+        <h2 className="mt-10 font-display text-xl font-semibold text-white">River status thresholds</h2>
+        <p className="mt-3 text-sm leading-relaxed text-ink-400">
+          Each station is coloured by today's modelled discharge relative to its own trailing
+          31-day median: <span className="text-emerald-400">normal</span> below 1.5×,{' '}
+          <span className="text-orange-400">elevated</span> from 1.5×, and{' '}
+          <span className="text-red-400">high</span> from 3×. This anomaly approach is
+          self-calibrating per river but is not a substitute for CWC's official warning/danger
+          levels, which are the planned replacement.
+        </p>
 
         <h2 className="mt-10 font-display text-xl font-semibold text-white">Static factors</h2>
         <p className="mt-3 text-sm leading-relaxed text-ink-400">
@@ -72,7 +82,8 @@ amplification = 0.25 + 0.75 · rain-normalized`}
         </p>
 
         <footer className="mt-12 border-t border-white/10 pt-6 font-mono text-[11px] text-ink-400">
-          Vegvisir · open data, open methodology · built for Kerala & South India
+          Vegvisir · open data, open methodology · built for Kerala & South India · made by{' '}
+          <span className="text-accent/80">AJ</span>
         </footer>
       </article>
     </div>

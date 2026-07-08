@@ -1,7 +1,8 @@
 {
   "name": "vegvisir",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
+  "author": "AJ",
   "description": "Vegvisir — real-time disaster intelligence platform for Kerala & South India",
   "scripts": {
     "dev": "next dev",
@@ -13,7 +14,7 @@
   },
   "dependencies": {
     "maplibre-gl": "4.7.1",
-    "next": "14.2.15",
+    "next": "^14.2.25",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "@react-three/fiber": "8.17.10",

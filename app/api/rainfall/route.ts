@@ -11,9 +11,8 @@ export async function GET() {
       { headers: { 'Cache-Control': 's-maxage=900, stale-while-revalidate=3600' } }
     );
   } catch (err) {
-    return NextResponse.json(
-      { error: 'rainfall source unavailable', detail: String(err) },
-      { status: 502 }
-    );
+    // Never leak upstream internals in production responses.
+    const detail = process.env.NODE_ENV === 'production' ? undefined : String(err);
+    return NextResponse.json({ error: 'rainfall source unavailable', detail }, { status: 502 });
   }
 }

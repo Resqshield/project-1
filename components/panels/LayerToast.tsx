@@ -25,14 +25,15 @@ export default function LayerToast() {
   if (!layer) return null;
 
   return (
+    // Centered via flex (not translate-x-50%) — half-pixel transforms blur text.
     <div
       role="status"
       aria-live="polite"
-      className={`pointer-events-none fixed bottom-28 left-1/2 z-40 w-[min(92vw,26rem)] -translate-x-1/2 transition-all duration-300 ${
-        visible ? 'translate-y-0 opacity-100' : 'pointer-events-none translate-y-3 opacity-0'
+      className={`pointer-events-none fixed inset-x-0 bottom-28 z-40 flex justify-center px-4 transition-all duration-300 ${
+        visible ? 'translate-y-0 opacity-100' : 'translate-y-2 opacity-0'
       }`}
     >
-      <div className="rounded-2xl border border-white/10 bg-ink-900/90 px-4 py-3 shadow-2xl backdrop-blur-xl">
+      <div className="w-[min(92vw,26rem)] rounded-2xl border border-white/10 bg-ink-900/95 px-4 py-3 shadow-2xl">
         <p className="flex items-center gap-2 text-xs font-semibold text-white">
           <LayerIcon id={layer.id} active={!!event?.on} />
           {event?.on ? 'Layer added — ' : 'Layer removed — '}

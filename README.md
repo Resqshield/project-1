@@ -24,10 +24,12 @@ Live rainfall · hazard alerts · river levels · landslide susceptibility · po
 6. [Data sources & tiers](#data-sources--tiers)
 7. [The composite risk index](#the-composite-risk-index)
 8. [API reference](#api-reference)
-9. [UI & accessibility](#ui--accessibility)
-10. [Troubleshooting](#troubleshooting)
-11. [Roadmap](#roadmap)
-12. [License & attribution](#license--attribution)
+9. [Security](#security)
+10. [UI & accessibility](#ui--accessibility)
+11. [Troubleshooting](#troubleshooting)
+12. [Changelog](#changelog)
+13. [Roadmap](#roadmap)
+14. [License & attribution](#license--attribution)
 
 ---
 
@@ -35,7 +37,8 @@ Live rainfall · hazard alerts · river levels · landslide susceptibility · po
 
 - **Cinematic 3D entry** — a photoreal Earth (NASA Blue Marble, terrain bump-mapping, ocean specular, sun-lit terminator, fresnel atmosphere) rotates Kerala into view and dissolves into the live map. Skippable; auto-skipped under `prefers-reduced-motion`.
 - **Two basemap modes** — *Dark* (CARTO Dark Matter vector, tuned for data overlays) and *Satellite* (Esri World Imagery — photoreal, Google-Earth-style). Switch any time from the top bar; all overlays survive the swap.
-- **Live hazard layers** — district risk choropleth, rainfall (observed + 72 h forecast with a playable timeline), GDACS hazard alerts, USGS earthquakes, NASA GIBS daily satellite overlay.
+- **Live hazard layers** — district risk choropleth, rainfall (observed + 72 h forecast with a playable timeline), **live river discharge** (GloFAS/Copernicus at CWC station sites), GDACS hazard alerts, USGS earthquakes, NASA GIBS daily satellite overlay.
+- **Animated layer language** — each layer has a distinctive icon that animates while active (falling raindrops, flowing waves, tracing seismograph, orbiting satellite); toggling a layer pops its markers onto the map with an overshoot ease and raises a toast explaining how to read it, with its legend inline.
 - **District drill-down** — click any district for an animated risk ring, driver breakdown (rain / landslide / flood / exposure), hourly rainfall sparkline synced to the timeline, and river-gauge status.
 - **Honest data tiers** — every layer is badged **LIVE** (streaming from public feeds) or **SAMPLE** (real locations, illustrative readings pending official adapters). Freshness badges report feed age; failures degrade gracefully instead of showing stale data as current.
 - **Transparent risk model** — the composite index weights are published at `/methodology` for audit.
@@ -108,16 +111,19 @@ app/
   icon.svg               favicon — vegvísir wayfinder mark
   globals.css            Tailwind, MapLibre re-skin, reduced-motion
   methodology/page.tsx   published risk model & source documentation
-  api/                   rainfall / risk / alerts / quakes route handlers
+  api/                   rainfall / risk / alerts / quakes / rivers route handlers
 components/
   Dashboard.tsx          composition root — feeds fetched once, shared by all
   intro/GlobeIntro.tsx   R3F photoreal Earth, 3-phase cinematic camera
   map/MapCanvas.tsx      MapLibre instance + overlay orchestration
-  panels/                TopBar, LayerPanel, DetailPanel, Timeline, AlertTicker
+  panels/                TopBar, LayerPanel, DetailPanel, Timeline, AlertTicker,
+                         InfoModal (data sources + disclaimer), LayerToast
   ui/Badge.tsx           LIVE/SAMPLE + freshness badges
+  ui/LayerIcon.tsx       animated per-layer SVG icons
 lib/
   types.ts               domain model
   districts.ts           14 districts: centroids, density, susceptibility
+  riverStations.ts       10 CWC gauging-station sites (live GloFAS sampling points)
   risk.ts                composite risk engine (documented weights)
   layers.ts              layer registry — single source of truth for the panel
   geo.ts                 boundary fetch with multi-source fallback
@@ -168,8 +174,23 @@ All routes return `{ updatedAt, tier, source, data }` and cache at the edge.
 | `GET /api/risk` | `RiskScore[]` — score 0–100, severity band, driver breakdown | 15 min |
 | `GET /api/alerts` | `HazardAlert[]` — normalized GDACS events for the region | 5 min |
 | `GET /api/quakes` | `Quake[]` — USGS events, bbox 66–92°E / 2–22°N | 5 min |
+| `GET /api/rivers` | `RiverStatus[]` — GloFAS discharge per station: today m³/s, 31-day median, anomaly ratio, trend, 7-day forecast peak | 1 h |
 
-Failures return `502` with a reason; the UI shows per-layer "source unavailable" badges rather than breaking.
+Failures return `502` with a generic reason (diagnostic detail only in development); the UI shows per-layer "source unavailable" badges rather than breaking.
+
+## Security
+
+Hardened for public deployment; verify after any dependency or data-source change.
+
+- **Security headers on every response** (`next.config.mjs`): `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` + `frame-ancestors 'none'` (no clickjacking), `Referrer-Policy: strict-origin-when-cross-origin`, `Permissions-Policy` (camera/mic/geolocation/payment denied), `Strict-Transport-Security`, and `poweredByHeader` disabled.
+- **Content-Security-Policy (production builds)** — default-deny with an explicit allowlist of every external host the app touches (CARTO, OpenFreeMap, OSM, Esri, NASA GIBS tiles; GitHub raw for boundaries; unpkg for globe textures), `object-src 'none'`, `base-uri 'self'`, MapLibre's worker allowed via `worker-src blob:`. **If you add a data source, add its host to `TILE_HOSTS`/`connect-src` or the browser will block it.**
+- **Output encoding** — all upstream text interpolated into map popups is HTML-escaped (incl. quotes), numbers are coerced via `Number.isFinite`, and colours entering style attributes must match a strict `#hex` allowlist. GDACS titles/descriptions are entity-decoded, tag-stripped, and length-capped server-side.
+- **No secrets** — zero API keys or environment variables; nothing to leak.
+- **SSRF-safe API routes** — every proxy fetches a fixed, hardcoded URL; no user input reaches any fetch. Routes accept no query parameters.
+- **No injection surface** — no database, no cookies, no auth, no forms, no `dangerouslySetInnerHTML`, no `eval`.
+- **Error hygiene** — production 502s return a generic message; upstream details are logged/dev-only.
+- **DoS posture** — all API responses are edge-cached (`s-maxage` + `stale-while-revalidate`), so traffic spikes hit Vercel's cache, not upstream government/scientific feeds.
+- **Supply chain** — few dependencies, pinned or floor-pinned (`next ^14.2.25` includes the middleware-bypass CVE-2025-29927 patch line; this app also uses no middleware). Run `npm audit` before each deploy.
 
 ## UI & accessibility
 
@@ -185,6 +206,19 @@ Keyboard-navigable controls with visible focus rings · `role="switch"` layer to
 | Rainfall circles invisible | It's dry at the selected hour — scrub the timeline; circle size/opacity encode mm/h intensity. |
 | No alerts on the map | GDACS may have no active events near South India (a good day). The ticker hides when empty. |
 | District polygons missing (dots instead) | Boundary GeoJSON unreachable — run `npm run fetch:data` to bundle it locally. |
+| A layer breaks only in production | Almost certainly the CSP — check the browser console for a blocked host and add it to the allowlist in `next.config.mjs`. |
+| Blurry panels/toasts | Fixed in v1.0 (sub-pixel transform centering). If you add floating UI, avoid `left-1/2 -translate-x-1/2` and CSS `scale` on text/SVG. |
+
+## Changelog
+
+**v1.0** — production-hardening release
+- River layer graduated from SAMPLE to **LIVE**: GloFAS discharge via Open-Meteo Flood API at 10 CWC station sites (anomaly-based status, trend, 7-day peak); dam sample data removed rather than shown as fake.
+- Animated per-layer icons, layer toggle pop-in animations, explanatory toasts, inline legends.
+- Basemap modes (CARTO dark / Esri satellite) with style-swap-safe overlay re-attachment (`diff: false` + epoch pattern).
+- Photoreal R3F globe intro (Blue Marble, terrain bump, fresnel atmosphere, cinematic camera).
+- Data-sources info modal with disclaimer; favicon; "made by AJ" signature.
+- Security hardening: CSP + full header set, popup output-encoding, prod error hygiene, `poweredByHeader` off, Next.js floor-pinned past known CVEs.
+- Fixes: MapLibre CSS moved to root layout (chunk-load failure), boot-instant inline basemap, sub-pixel blur in toasts/icons.
 
 ## Roadmap
 
@@ -197,3 +231,7 @@ See `vegvisir-implementation-plan.md` for the full phased plan.
 MIT. Basemaps and data feeds retain their own licenses — keep the map attribution control visible (OpenStreetMap contributors, CARTO, Esri, NASA, Open-Meteo CC-BY, GDACS, USGS).
 
 > **Disclaimer:** Vegvisir is a visualization and decision-support layer. Official warnings come from IMD, NDMA and state disaster management authorities.
+
+---
+
+<div align="center">Made by <strong>AJ</strong></div>
