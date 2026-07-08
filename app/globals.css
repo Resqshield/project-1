@@ -96,6 +96,42 @@ aside::-webkit-scrollbar-thumb {
   border-radius: 9999px;
 }
 
+/* ---- Layer icon micro-animations (active layers only) ---- */
+@keyframes vegDrop {
+  0% { transform: translateY(-2px); opacity: 0; }
+  35% { opacity: 1; }
+  100% { transform: translateY(3px); opacity: 0; }
+}
+.veg-drop { animation: vegDrop 1.3s ease-in infinite; }
+
+@keyframes vegWave {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(2.5px); }
+}
+.veg-wave { animation: vegWave 2.4s ease-in-out infinite; }
+
+@keyframes vegTrace {
+  0% { stroke-dashoffset: 100; }
+  55%, 70% { stroke-dashoffset: 0; opacity: 1; }
+  100% { stroke-dashoffset: 0; opacity: 0.25; }
+}
+.veg-trace { animation: vegTrace 2.6s ease-out infinite; }
+
+@keyframes vegBlink {
+  0%, 78%, 100% { opacity: 1; }
+  86% { opacity: 0.35; }
+}
+.veg-blink { animation: vegBlink 2.2s ease-in-out infinite; }
+
+@keyframes vegPulseCore {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.veg-pulse-core { animation: vegPulseCore 2s ease-in-out infinite; }
+
+.veg-delay-1 { animation-delay: 0.35s; }
+.veg-delay-2 { animation-delay: 0.7s; }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -70,16 +70,22 @@ export interface Quake {
   url: string;
 }
 
-export interface RiverGauge {
+export interface RiverStatus {
   id: string;
   name: string;
   river: string;
   districtId: string;
   coords: [number, number];
-  levelM: number;
-  warningM: number;
-  dangerM: number;
+  /** today's modelled discharge, m³/s (GloFAS) */
+  dischargeM3s: number;
+  /** median of the trailing ~31 days — the station's "normal" flow */
+  median31d: number;
+  /** dischargeM3s / median31d — the anomaly the map colours by */
+  ratio: number;
+  /** max forecast discharge over the next 7 days, m³/s */
+  forecastMax7d: number;
   trend: 'rising' | 'falling' | 'steady';
+  status: 'normal' | 'elevated' | 'high';
   tier: DataTier;
 }
 

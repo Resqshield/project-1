@@ -140,7 +140,7 @@ scripts/fetch-data.mjs   optional boundary bundler
 | Dark basemap | [CARTO Dark Matter](https://carto.com/basemaps) / © OpenStreetMap | LIVE | — |
 | Satellite basemap | Esri World Imagery (© Esri, Maxar, Earthstar) | LIVE | — |
 | District boundaries | community GeoJSON (datameet lineage) | static | — |
-| River gauges & dams | real CWC/KSEB locations, illustrative readings | **SAMPLE** | — |
+| River discharge | [GloFAS via Open-Meteo Flood API](https://open-meteo.com/en/docs/flood-api) at CWC station sites | **LIVE** | hourly poll, daily model |
 | Hospitals & shelters | real facilities, curated subset | **SAMPLE** | — |
 | Landslide susceptibility | derived from NRSC/ISRO Landslide Atlas rankings | static | — |
 

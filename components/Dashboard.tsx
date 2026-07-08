@@ -1,11 +1,12 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useAlerts, useQuakes, useRainfall, useRisk } from '@/lib/hooks/useData';
+import { useAlerts, useQuakes, useRainfall, useRisk, useRivers } from '@/lib/hooks/useData';
 import { useAppStore } from '@/store/useAppStore';
 import AlertTicker from '@/components/panels/AlertTicker';
 import DetailPanel from '@/components/panels/DetailPanel';
 import InfoModal from '@/components/panels/InfoModal';
+import LayerToast from '@/components/panels/LayerToast';
 import LayerPanel from '@/components/panels/LayerPanel';
 import Timeline from '@/components/panels/Timeline';
 import TopBar from '@/components/panels/TopBar';
@@ -35,12 +36,13 @@ export default function Dashboard() {
   const rain = useRainfall();
   const alerts = useAlerts();
   const quakes = useQuakes();
+  const rivers = useRivers();
 
   return (
     <div className="fixed inset-0 overflow-hidden bg-ink-950">
       {!introDone && <GlobeIntro />}
 
-      <MapCanvas risk={risk.data} rain={rain.data} alerts={alerts.data} quakes={quakes.data} />
+      <MapCanvas risk={risk.data} rain={rain.data} alerts={alerts.data} quakes={quakes.data} rivers={rivers.data} />
 
       {/* Floating UI — pointer-events pass through the wrapper to the map */}
       <div className="pointer-events-none absolute inset-0 flex flex-col p-3 md:p-4">
@@ -49,14 +51,14 @@ export default function Dashboard() {
             <TopBar />
           </div>
           <div className="hidden md:block">
-            <DetailPanel risk={risk.data} rain={rain.data} />
+            <DetailPanel risk={risk.data} rain={rain.data} rivers={rivers.data} />
           </div>
         </div>
 
         <div className="mt-3 flex min-h-0 flex-1 items-start justify-between gap-3">
           <LayerPanel />
           <div className="md:hidden">
-            <DetailPanel risk={risk.data} rain={rain.data} />
+            <DetailPanel risk={risk.data} rain={rain.data} rivers={rivers.data} />
           </div>
         </div>
 
@@ -77,6 +79,7 @@ export default function Dashboard() {
         </div>
       </div>
 
+      <LayerToast />
       <InfoModal />
     </div>
   );

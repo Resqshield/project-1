@@ -4,9 +4,9 @@ import maplibregl, { Map as MLMap, Popup } from 'maplibre-gl';
 import { useEffect, useRef, useState } from 'react';
 import { DISTRICTS, KERALA_CENTER, REGION_BOUNDS } from '@/lib/districts';
 import { fetchDistrictBoundaries } from '@/lib/geo';
-import { RIVER_GAUGES, SHELTERS } from '@/lib/sampleData';
+import { SHELTERS } from '@/lib/sampleData';
 import { SEVERITY_COLORS } from '@/lib/types';
-import type { HazardAlert, Quake, RainPoint, RiskScore } from '@/lib/types';
+import type { HazardAlert, Quake, RainPoint, RiskScore, RiverStatus } from '@/lib/types';
 import { useAppStore } from '@/store/useAppStore';
 
 /**
@@ -101,7 +101,8 @@ const PAINT_TARGETS: Record<string, { opacity: Record<string, any>; radius?: Rec
   },
   'gauge-circles': {
     opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 0.7 },
-    radius: { 'circle-radius': 6 },
+    // size grows with discharge anomaly (× normal flow)
+    radius: { 'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'ratio'], 1], 0, 5, 1, 6, 3, 10, 6, 14] },
   },
   'infra-circles': {
     opacity: { 'circle-opacity': 1, 'circle-stroke-opacity': 1 },
@@ -162,9 +163,16 @@ interface Props {
   rain: RainPoint[] | null;
   alerts: HazardAlert[] | null;
   quakes: Quake[] | null;
+  rivers: RiverStatus[] | null;
 }
 
-export default function MapCanvas({ risk, rain, alerts, quakes }: Props) {
+const RIVER_STATUS_COLOR: Record<string, string> = {
+  normal: '#22c55e',
+  elevated: '#f97316',
+  high: '#ef4444',
+};
+
+export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
   const darkStyleRef = useRef<any>(BOOT_DARK_STYLE);
@@ -174,6 +182,7 @@ export default function MapCanvas({ risk, rain, alerts, quakes }: Props) {
   const [boundaries, setBoundaries] = useState<GeoJSON.FeatureCollection | null>(null);
 
   const activeLayers = useAppStore((s) => s.activeLayers);
+  const lastLayerEvent = useAppStore((s) => s.lastLayerEvent);
   const basemapMode = useAppStore((s) => s.basemapMode);
   const timelineHour = useAppStore((s) => s.timelineHour);
   const selectDistrict = useAppStore((s) => s.selectDistrict);
@@ -359,6 +368,31 @@ export default function MapCanvas({ risk, rain, alerts, quakes }: Props) {
     (map.getSource('quakes') as maplibregl.GeoJSONSource)?.setData(fc as any);
   }, [quakes, ready, epoch]);
 
+  /* ------------------------------- river layer ------------------------------ */
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !rivers) return;
+    const fc: GeoJSON.FeatureCollection = {
+      type: 'FeatureCollection',
+      features: rivers.map((r) => ({
+        type: 'Feature',
+        properties: {
+          name: r.name,
+          river: r.river,
+          discharge: r.dischargeM3s,
+          median: r.median31d,
+          ratio: r.ratio,
+          forecastMax: r.forecastMax7d,
+          trend: r.trend,
+          status: RIVER_STATUS_COLOR[r.status],
+          statusLabel: r.status,
+        },
+        geometry: { type: 'Point', coordinates: r.coords },
+      })),
+    };
+    (map.getSource('gauges') as maplibregl.GeoJSONSource)?.setData(fc as any);
+  }, [rivers, ready, epoch]);
+
   /* ---------------------------- layer visibility ---------------------------- */
   useEffect(() => {
     const map = mapRef.current;
@@ -375,6 +409,23 @@ export default function MapCanvas({ risk, rain, alerts, quakes }: Props) {
     vis(['infra-circles'], activeLayers.has('infrastructure'));
     vis(['gibs-satellite'], activeLayers.has('satellite'));
   }, [activeLayers, ready, boundaries, epoch]);
+
+  /* --------------------------- layer pop-in animation ------------------------ */
+  // Runs AFTER the visibility effect (declared above) has made the layer
+  // visible, so the tween animates an already-visible layer from 0 → target.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready || !lastLayerEvent?.on) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const mapLayers = (UI_LAYER_MAP[lastLayerEvent.id] ?? []).filter(
+      // centroid circles are hidden when polygons are present — don't animate hidden layers
+      (id) => id !== 'risk-centroid-circles' || !boundaries
+    );
+    const cancels = mapLayers.map((id) => animateLayerIn(map, id));
+
+    return () => cancels.forEach((c) => c()); // snap to exact finals on cleanup
+  }, [lastLayerEvent, ready, boundaries]);
 
   /* --------------------------- selection highlight -------------------------- */
   useEffect(() => {
@@ -419,8 +470,13 @@ export default function MapCanvas({ risk, rain, alerts, quakes }: Props) {
     const onGauge = (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
+      const arrow = p.trend === 'rising' ? '↑ rising' : p.trend === 'falling' ? '↓ falling' : '→ steady';
       popup(
-        `<strong>${esc(p.name)}</strong> · ${esc(p.river)}<br/>Level ${p.level} m — warning ${p.warning} m / danger ${p.danger} m<br/><em>sample data</em>`,
+        `<strong>${esc(p.name)}</strong> · ${esc(p.river)}<br/>` +
+          `Discharge <strong>${p.discharge} m³/s</strong> (${arrow})<br/>` +
+          `<span style="color:${p.status}">● ${esc(p.statusLabel)}</span> — ${p.ratio}× the 31-day median (${p.median} m³/s)<br/>` +
+          `7-day forecast peak: ${p.forecastMax} m³/s<br/>` +
+          `<em>GloFAS via Open-Meteo</em>`,
         e.lngLat
       );
     };
@@ -619,28 +675,15 @@ function ensureOverlays(map: MLMap) {
     },
   });
 
-  // River gauges & dams (sample tier)
-  addSource('gauges', {
-    type: 'geojson',
-    data: {
-      type: 'FeatureCollection',
-      features: RIVER_GAUGES.map((g) => {
-        const status = g.levelM >= g.dangerM ? '#ef4444' : g.levelM >= g.warningM ? '#f97316' : '#22c55e';
-        return {
-          type: 'Feature' as const,
-          properties: { name: g.name, river: g.river, level: g.levelM, warning: g.warningM, danger: g.dangerM, status },
-          geometry: { type: 'Point' as const, coordinates: g.coords },
-        };
-      }),
-    },
-  });
+  // Rivers — LIVE GloFAS discharge (data pushed by the rivers effect)
+  addSource('gauges', { type: 'geojson', data: empty });
   addLayer({
     id: 'gauge-circles',
     type: 'circle',
     source: 'gauges',
     paint: {
-      'circle-color': ['get', 'status'],
-      'circle-radius': 6,
+      'circle-color': ['coalesce', ['get', 'status'], '#22c55e'],
+      'circle-radius': ['interpolate', ['linear'], ['coalesce', ['get', 'ratio'], 1], 0, 5, 1, 6, 3, 10, 6, 14],
       'circle-stroke-color': '#ffffff',
       'circle-stroke-width': 1.2,
       'circle-stroke-opacity': 0.7,

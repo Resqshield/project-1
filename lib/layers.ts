@@ -48,15 +48,15 @@ export const LAYERS: LayerMeta[] = [
   },
   {
     id: 'gauges',
-    label: 'River gauges & dams',
+    label: 'River discharge (GloFAS)',
     group: 'Water',
-    tier: 'sample',
-    description: 'CWC/KSEB stations — colour = water level vs official thresholds. Click a gauge for readings.',
+    tier: 'live',
+    description: 'Live modelled river flow at CWC station sites — colour & size = today\'s discharge vs the 31-day median. Click a station for readings and the 7-day peak.',
     defaultOn: true,
     legend: [
-      { color: '#22c55e', label: 'below warning', shape: 'dot' },
-      { color: '#f97316', label: 'above warning', shape: 'dot' },
-      { color: '#ef4444', label: 'above danger', shape: 'dot' },
+      { color: '#22c55e', label: 'normal flow', shape: 'dot' },
+      { color: '#f97316', label: '≥1.5× median', shape: 'dot' },
+      { color: '#ef4444', label: '≥3× median', shape: 'dot' },
     ],
   },
   {

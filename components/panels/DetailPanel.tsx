@@ -2,18 +2,24 @@
 
 import { DISTRICT_BY_ID } from '@/lib/districts';
 import { SEVERITY_LABELS, mm } from '@/lib/format';
-import { RIVER_GAUGES } from '@/lib/sampleData';
 import { SEVERITY_COLORS } from '@/lib/types';
-import type { RainPoint, RiskScore } from '@/lib/types';
+import type { RainPoint, RiskScore, RiverStatus } from '@/lib/types';
 import { useAppStore } from '@/store/useAppStore';
 
 interface Props {
   risk: RiskScore[] | null;
   rain: RainPoint[] | null;
+  rivers: RiverStatus[] | null;
 }
 
-/** District drill-down: risk ring, driver bars, 72 h rain sparkline, gauges. */
-export default function DetailPanel({ risk, rain }: Props) {
+const RIVER_STATUS_COLOR: Record<RiverStatus['status'], string> = {
+  normal: '#22c55e',
+  elevated: '#f97316',
+  high: '#ef4444',
+};
+
+/** District drill-down: risk ring, driver bars, 72 h rain sparkline, rivers. */
+export default function DetailPanel({ risk, rain, rivers }: Props) {
   const id = useAppStore((s) => s.selectedDistrictId);
   const selectDistrict = useAppStore((s) => s.selectDistrict);
   const timelineHour = useAppStore((s) => s.timelineHour);
@@ -24,7 +30,7 @@ export default function DetailPanel({ risk, rain }: Props) {
 
   const r = risk?.find((x) => x.districtId === id);
   const rf = rain?.find((x) => x.districtId === id);
-  const gauges = RIVER_GAUGES.filter((g) => g.districtId === id);
+  const districtRivers = (rivers ?? []).filter((g) => g.districtId === id);
   const color = r ? SEVERITY_COLORS[r.severity] : '#64748b';
 
   return (
@@ -101,26 +107,27 @@ export default function DetailPanel({ risk, rain }: Props) {
         </div>
       )}
 
-      {/* Gauges */}
-      {gauges.length > 0 && (
+      {/* Rivers — live GloFAS discharge */}
+      {districtRivers.length > 0 && (
         <div className="rounded-xl border border-white/5 bg-white/[0.03] p-3">
           <h3 className="mb-2 text-xs font-semibold text-ink-200">
-            River gauges & dams <span className="font-mono text-[9px] font-normal uppercase text-amber-400">sample</span>
+            River discharge <span className="font-mono text-[9px] font-normal uppercase text-emerald-400">live · GloFAS</span>
           </h3>
           <ul className="space-y-1.5">
-            {gauges.map((g) => {
-              const st = g.levelM >= g.dangerM ? 'red' : g.levelM >= g.warningM ? 'orange' : 'green';
-              return (
-                <li key={g.id} className="flex items-center justify-between text-xs">
-                  <span className="text-ink-200">
-                    {g.name} <span className="text-ink-400">· {g.river}</span>
-                  </span>
-                  <span className="font-mono" style={{ color: SEVERITY_COLORS[st] }}>
-                    {g.levelM} m {g.trend === 'rising' ? '↑' : g.trend === 'falling' ? '↓' : '→'}
-                  </span>
-                </li>
-              );
-            })}
+            {districtRivers.map((g) => (
+              <li key={g.id} className="flex items-center justify-between gap-2 text-xs">
+                <span className="min-w-0 truncate text-ink-200">
+                  {g.name} <span className="text-ink-400">· {g.river}</span>
+                </span>
+                <span
+                  className="shrink-0 font-mono"
+                  style={{ color: RIVER_STATUS_COLOR[g.status] }}
+                  title={`${g.ratio}× the 31-day median flow`}
+                >
+                  {g.dischargeM3s} m³/s {g.trend === 'rising' ? '↑' : g.trend === 'falling' ? '↓' : '→'}
+                </span>
+              </li>
+            ))}
           </ul>
         </div>
       )}

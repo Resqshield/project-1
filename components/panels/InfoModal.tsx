@@ -20,7 +20,7 @@ const SOURCES: SourceRow[] = [
   { name: 'NRSC / ISRO Landslide Atlas', provides: 'District landslide susceptibility rankings (derived)', tier: 'STATIC', url: 'https://www.nrsc.gov.in' },
   { name: 'Census of India', provides: 'District population density (exposure factor)', tier: 'STATIC', url: 'https://censusindia.gov.in' },
   { name: 'Community GeoJSON (datameet)', provides: 'Kerala district boundaries', tier: 'STATIC', url: 'https://github.com/datameet' },
-  { name: 'CWC / KSEB station locations', provides: 'River gauges & dams — real sites, illustrative readings', tier: 'SAMPLE', url: 'https://ffs.india-water.gov.in' },
+  { name: 'GloFAS via Open-Meteo Flood API', provides: 'River discharge at CWC station sites — modelled, updated daily (Copernicus)', tier: 'LIVE', url: 'https://open-meteo.com/en/docs/flood-api' },
   { name: 'Curated facility list', provides: 'Hospitals, relief camps, fire stations', tier: 'SAMPLE', url: 'https://sdma.kerala.gov.in' },
 ];
 

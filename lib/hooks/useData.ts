@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { HazardAlert, Quake, RainPoint, RiskScore } from '@/lib/types';
+import type { HazardAlert, Quake, RainPoint, RiskScore, RiverStatus } from '@/lib/types';
 
 interface Envelope<T> {
   updatedAt: string;
@@ -68,3 +68,4 @@ export const useRainfall = () => usePolledFeed<RainPoint[]>('/api/rainfall', 15 
 export const useRisk = () => usePolledFeed<RiskScore[]>('/api/risk', 15 * 60_000);
 export const useAlerts = () => usePolledFeed<HazardAlert[]>('/api/alerts', 5 * 60_000);
 export const useQuakes = () => usePolledFeed<Quake[]>('/api/quakes', 5 * 60_000);
+export const useRivers = () => usePolledFeed<RiverStatus[]>('/api/rivers', 60 * 60_000);
