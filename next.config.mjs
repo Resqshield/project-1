@@ -51,6 +51,20 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['three'],
   },
+  // Windows: drives without proper symlink support (exFAT/Dev Drive/network)
+  // return EISDIR from readlink, which breaks webpack in three places —
+  // module resolution, persistent-cache snapshotting, and build tracing.
+  // All three are gated off for local Windows builds only; Vercel builds on
+  // Linux and keeps full caching + tracing. (npm doesn't symlink packages,
+  // so resolve.symlinks=false is safe.)
+  outputFileTracing: process.platform !== 'win32',
+  webpack: (config, { dev }) => {
+    config.resolve.symlinks = false;
+    if (!dev && process.platform === 'win32') {
+      config.cache = false; // PackFileCacheStrategy snapshots readlink every input
+    }
+    return config;
+  },
   async headers() {
     return [
       { source: '/:path*', headers: securityHeaders },

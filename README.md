@@ -207,6 +207,7 @@ Keyboard-navigable controls with visible focus rings · `role="switch"` layer to
 | No alerts on the map | GDACS may have no active events near South India (a good day). The ticker hides when empty. |
 | District polygons missing (dots instead) | Boundary GeoJSON unreachable — run `npm run fetch:data` to bundle it locally. |
 | A layer breaks only in production | Almost certainly the CSP — check the browser console for a blocked host and add it to the allowlist in `next.config.mjs`. |
+| `EISDIR: illegal operation on a directory, readlink` during `next build` on Windows | The project sits on a drive whose filesystem (exFAT/Dev Drive/network) misreports `readlink`. Already mitigated in `next.config.mjs` (symlink resolution, webpack cache, and file tracing gated off on Windows). If it persists, build from an NTFS drive (e.g. C:) or just deploy — Vercel builds on Linux, unaffected. |
 | Blurry panels/toasts | Fixed in v1.0 (sub-pixel transform centering). If you add floating UI, avoid `left-1/2 -translate-x-1/2` and CSS `scale` on text/SVG. |
 
 ## Changelog
