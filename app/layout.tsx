@@ -19,6 +19,11 @@ export const metadata: Metadata = {
     description: 'Live disaster intelligence for Kerala & South India.',
     type: 'website',
   },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Vegvisir — see the storm before it arrives',
+    description: 'Live disaster intelligence for Kerala & South India.',
+  },
 };
 
 export const viewport: Viewport = {
@@ -31,6 +36,21 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${body.variable} ${display.variable}`}>
+      <head>
+        {/* R4 — shave first-map-paint latency: warm up the tile/style hosts and
+            preload the polished dark style JSON that upgrades the boot basemap. */}
+        <link rel="preconnect" href="https://basemaps.cartocdn.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://basemaps.cartocdn.com" />
+        <link rel="dns-prefetch" href="https://server.arcgisonline.com" />
+        <link rel="dns-prefetch" href="https://gibs.earthdata.nasa.gov" />
+        <link rel="dns-prefetch" href="https://tile.openstreetmap.org" />
+        <link
+          rel="preload"
+          as="fetch"
+          href="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+          crossOrigin="anonymous"
+        />
+      </head>
       <body className="bg-ink-950 font-body text-ink-200 antialiased">
         <a
           href="#main"

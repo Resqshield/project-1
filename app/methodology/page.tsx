@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { DATA_SOURCES } from '@/lib/sources';
 
 export const metadata: Metadata = {
   title: 'Methodology — Vegvisir',
@@ -80,6 +81,35 @@ amplification = 0.25 + 0.75 · rain-normalized`}
           WorldPop gridded population. The ingestion architecture treats every upstream source as
           unreliable: adapters validate, normalize and cache, and the UI surfaces per-layer freshness.
         </p>
+
+        <h2 className="mt-10 font-display text-xl font-semibold text-white">Every source</h2>
+        <p className="mt-3 text-sm leading-relaxed text-ink-400">
+          This list and the in-app “Data sources” panel are generated from a single registry, so
+          provenance is described identically everywhere.
+        </p>
+        <ul className="mt-4 space-y-2">
+          {DATA_SOURCES.map((s) => (
+            <li key={s.name} className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.02] px-3 py-2.5">
+              <span
+                className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold ${
+                  s.tier === 'LIVE'
+                    ? 'bg-emerald-500/15 text-emerald-400'
+                    : s.tier === 'SAMPLE'
+                    ? 'bg-amber-500/15 text-amber-400'
+                    : 'bg-sky-500/15 text-sky-400'
+                }`}
+              >
+                {s.tier}
+              </span>
+              <div className="min-w-0">
+                <a href={s.url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-ink-200 underline-offset-2 hover:text-accent hover:underline">
+                  {s.name} ↗
+                </a>
+                <p className="text-xs leading-relaxed text-ink-400">{s.provides}</p>
+              </div>
+            </li>
+          ))}
+        </ul>
 
         <footer className="mt-12 border-t border-white/10 pt-6 font-mono text-[11px] text-ink-400">
           Vegvisir · open data, open methodology · built for Kerala & South India · made by{' '}

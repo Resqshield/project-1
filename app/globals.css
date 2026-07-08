@@ -48,20 +48,46 @@ body {
   color: #8b98b8 !important;
 }
 
+/* Floating surface = 85% elevation token (C4). */
 .veg-popup .maplibregl-popup-content {
-  background: rgba(17, 24, 39, 0.95);
+  background: rgba(17, 24, 39, 0.85);
   color: #cbd5e8;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 0;
   font-size: 12px;
   line-height: 1.5;
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
 }
 .veg-popup .maplibregl-popup-tip {
-  border-top-color: rgba(17, 24, 39, 0.95) !important;
-  border-bottom-color: rgba(17, 24, 39, 0.95) !important;
+  border-top-color: rgba(17, 24, 39, 0.85) !important;
+  border-bottom-color: rgba(17, 24, 39, 0.85) !important;
+}
+/* Popups in the design system (T1): Space Grotesk title, tabular figures,
+   generous padding, and a status-coloured left border so severity reads
+   before the text does. `--veg-accent` is set inline per popup. */
+.veg-popup__body {
+  border-left: 3px solid var(--veg-accent, #38bdf8);
+  padding: 12px 16px;
+}
+.veg-popup__title {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  color: #f1f5f9;
+  letter-spacing: -0.01em;
+}
+.veg-popup__num {
+  font-variant-numeric: tabular-nums;
+}
+.veg-popup__status {
+  font-weight: 600;
+  color: var(--veg-accent, #38bdf8);
+}
+.veg-popup__meta {
+  color: #aab6d4;
 }
 
 /* Range slider */
@@ -119,12 +145,15 @@ aside::-webkit-scrollbar-thumb {
 }
 .veg-wave { animation: vegWave 2.4s ease-in-out infinite; }
 
+/* I1 — trace in, HOLD at full opacity, brief fade, retrace. Opacity floor
+   raised to 0.6 so the panel icon never looks "greyed/broken" at rest. */
 @keyframes vegTrace {
-  0% { stroke-dashoffset: 100; }
-  55%, 70% { stroke-dashoffset: 0; opacity: 1; }
-  100% { stroke-dashoffset: 0; opacity: 0.25; }
+  0% { stroke-dashoffset: 100; opacity: 0.6; }
+  45%, 80% { stroke-dashoffset: 0; opacity: 1; }
+  95% { stroke-dashoffset: 0; opacity: 0.6; }
+  100% { stroke-dashoffset: 100; opacity: 0.6; }
 }
-.veg-trace { animation: vegTrace 2.6s ease-out infinite; }
+.veg-trace { animation: vegTrace 2.8s ease-out infinite; }
 
 @keyframes vegBlink {
   0%, 78%, 100% { opacity: 1; }
@@ -140,6 +169,38 @@ aside::-webkit-scrollbar-thumb {
 
 .veg-delay-1 { animation-delay: 0.35s; }
 .veg-delay-2 { animation-delay: 0.7s; }
+
+/* L6 — loading skeleton shimmer for the detail panel */
+@keyframes vegShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.veg-skeleton {
+  background: linear-gradient(
+    100deg,
+    rgba(139, 152, 184, 0.08) 30%,
+    rgba(139, 152, 184, 0.20) 50%,
+    rgba(139, 152, 184, 0.08) 70%
+  );
+  background-size: 200% 100%;
+  animation: vegShimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+/* I2 — one-shot attention pulse for the timeline play button (not looping) */
+@keyframes vegAttention {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+  30% { box-shadow: 0 0 0 6px rgba(56, 189, 248, 0.35); }
+  60% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+}
+.veg-attention { animation: vegAttention 1.6s ease-out 2; }
+
+/* L5 — flash a detail-panel row when its map marker is clicked */
+@keyframes vegRowFlash {
+  0%, 100% { background-color: rgba(56, 189, 248, 0); }
+  25% { background-color: rgba(56, 189, 248, 0.22); }
+}
+.veg-row-flash { animation: vegRowFlash 1.6s ease-out; }
 
 @media (prefers-reduced-motion: reduce) {
   *,

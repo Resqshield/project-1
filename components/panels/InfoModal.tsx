@@ -2,29 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '@/store/useAppStore';
+import { DATA_SOURCES, type SourceTier } from '@/lib/sources';
 
-interface SourceRow {
-  name: string;
-  provides: string;
-  tier: 'LIVE' | 'SAMPLE' | 'STATIC';
-  url: string;
-}
-
-const SOURCES: SourceRow[] = [
-  { name: 'Open-Meteo', provides: 'Rainfall — observed + 72 h multi-model forecast (CC-BY 4.0)', tier: 'LIVE', url: 'https://open-meteo.com' },
-  { name: 'GDACS (EC JRC / UN OCHA)', provides: 'Multi-hazard disaster alerts — floods, cyclones, earthquakes', tier: 'LIVE', url: 'https://www.gdacs.org' },
-  { name: 'USGS', provides: 'Earthquakes, past 7 days, peninsular India region', tier: 'LIVE', url: 'https://earthquake.usgs.gov' },
-  { name: 'NASA GIBS', provides: 'VIIRS true-colour satellite imagery, updated daily', tier: 'LIVE', url: 'https://www.earthdata.nasa.gov/engage/gibs' },
-  { name: 'CARTO / OpenStreetMap', provides: 'Dark basemap — © OpenStreetMap contributors', tier: 'LIVE', url: 'https://carto.com/basemaps' },
-  { name: 'Esri World Imagery', provides: 'Satellite basemap — © Esri, Maxar, Earthstar Geographics', tier: 'LIVE', url: 'https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9' },
-  { name: 'NRSC / ISRO Landslide Atlas', provides: 'District landslide susceptibility rankings (derived)', tier: 'STATIC', url: 'https://www.nrsc.gov.in' },
-  { name: 'Census of India', provides: 'District population density (exposure factor)', tier: 'STATIC', url: 'https://censusindia.gov.in' },
-  { name: 'Community GeoJSON (datameet)', provides: 'Kerala district boundaries', tier: 'STATIC', url: 'https://github.com/datameet' },
-  { name: 'GloFAS via Open-Meteo Flood API', provides: 'River discharge at CWC station sites — modelled, updated daily (Copernicus)', tier: 'LIVE', url: 'https://open-meteo.com/en/docs/flood-api' },
-  { name: 'Curated facility list', provides: 'Hospitals, relief camps, fire stations', tier: 'SAMPLE', url: 'https://sdma.kerala.gov.in' },
-];
-
-const TIER_STYLE: Record<SourceRow['tier'], string> = {
+const TIER_STYLE: Record<SourceTier, string> = {
   LIVE: 'bg-emerald-500/15 text-emerald-400',
   SAMPLE: 'bg-amber-500/15 text-amber-400',
   STATIC: 'bg-sky-500/15 text-sky-400',
@@ -77,7 +57,7 @@ export default function InfoModal() {
         </div>
 
         <ul className="space-y-2">
-          {SOURCES.map((s) => (
+          {DATA_SOURCES.map((s) => (
             <li key={s.name} className="flex items-start gap-3 rounded-xl border border-white/5 bg-white/[0.03] px-3 py-2.5">
               <span className={`mt-0.5 shrink-0 rounded-full px-2 py-0.5 font-mono text-[9px] font-semibold ${TIER_STYLE[s.tier]}`}>
                 {s.tier}

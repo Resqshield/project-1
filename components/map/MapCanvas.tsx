@@ -7,6 +7,7 @@ import { fetchDistrictBoundaries } from '@/lib/geo';
 import { SHELTERS } from '@/lib/sampleData';
 import { SEVERITY_COLORS } from '@/lib/types';
 import type { HazardAlert, Quake, RainPoint, RiskScore, RiverStatus } from '@/lib/types';
+import { qty } from '@/lib/format';
 import { useAppStore } from '@/store/useAppStore';
 
 /**
@@ -73,18 +74,32 @@ const SATELLITE_STYLE: any = {
  * Expressions are multiplied by a 0→1 factor during the animation, which is
  * valid MapLibre expression algebra: ['*', f, <interpolate…>].
  */
+/**
+ * District choropleth opacity, with a ~18% brighten under the cursor (C3).
+ * Shared by ensureOverlays and PAINT_TARGETS so the pop-in tween and its final
+ * snap both preserve the hover boost.
+ */
+const DISTRICT_FILL_OPACITY: any = [
+  '*',
+  ['case', ['boolean', ['feature-state', 'hover'], false], 1.18, 1],
+  [
+    'interpolate', ['linear'], ['coalesce', ['feature-state', 'score'], 0],
+    0, 0.12, 40, 0.3, 70, 0.48, 100, 0.58,
+  ],
+];
+
 const PAINT_TARGETS: Record<string, { opacity: Record<string, any>; radius?: Record<string, any> }> = {
   'districts-fill': {
     opacity: {
-      'fill-opacity': [
-        'interpolate', ['linear'], ['coalesce', ['feature-state', 'score'], 0],
-        0, 0.12, 40, 0.3, 70, 0.48, 100, 0.58,
-      ],
+      'fill-opacity': DISTRICT_FILL_OPACITY,
     },
   },
   'districts-line': { opacity: { 'line-opacity': 1 } },
   'risk-centroid-circles': {
-    opacity: { 'circle-opacity': 0.55, 'circle-stroke-opacity': 0.9 },
+    opacity: {
+      'circle-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.75, 0.55],
+      'circle-stroke-opacity': 0.9,
+    },
     radius: { 'circle-radius': ['interpolate', ['linear'], ['get', 'score'], 0, 8, 100, 30] },
   },
   'rainfall-icons': {
@@ -176,6 +191,11 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
   const timelineHour = useAppStore((s) => s.timelineHour);
   const selectDistrict = useAppStore((s) => s.selectDistrict);
   const selectedDistrictId = useAppStore((s) => s.selectedDistrictId);
+  const setCompareDistrict = useAppStore((s) => s.setCompareDistrict);
+  const highlightStation = useAppStore((s) => s.highlightStation);
+
+  /** Hidden aria-live region so popup content reaches screen readers (A1). */
+  const liveRef = useRef<HTMLDivElement>(null);
 
   const ready = epoch > 0;
 
@@ -317,9 +337,17 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
       features: DISTRICTS.map((d) => {
         const r = byId.get(d.id);
         const intensity = r?.hourly[Math.min(timelineHour, 71)] ?? 0;
+        // I5 — deterministic per-district jitter so the rain icons read as
+        // weather rather than a regular grid at district centroids.
+        const h = hashStr(d.id);
+        const jitter = 0.9 + ((h % 1000) / 1000) * 0.2; // ±10% size
+        const offset: [number, number] = [
+          ((h % 7) - 3) * 1.4, // ~±4px x
+          (((h >> 3) % 7) - 3) * 1.4, // ~±4px y
+        ];
         return {
           type: 'Feature',
-          properties: { districtId: d.id, name: d.name, intensity, next24: r?.next24h ?? 0 },
+          properties: { districtId: d.id, name: d.name, intensity, next24: r?.next24h ?? 0, jitter, offset },
           geometry: { type: 'Point', coordinates: d.centroid },
         };
       }),
@@ -375,6 +403,8 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
       features: rivers.map((r) => ({
         type: 'Feature',
         properties: {
+          stationId: r.id,
+          districtId: r.districtId,
           name: r.name,
           river: r.river,
           discharge: r.dischargeM3s,
@@ -424,9 +454,23 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
       }
       raf = requestAnimationFrame(loop);
     };
-    raf = requestAnimationFrame(loop);
+    // R3 — don't burn a rAF loop while the tab is backgrounded; gate it on
+    // visibility like the data hooks do.
+    const start = () => {
+      if (!raf) raf = requestAnimationFrame(loop);
+    };
+    const stop = () => {
+      if (raf) {
+        cancelAnimationFrame(raf);
+        raf = 0;
+      }
+    };
+    const onVis = () => (document.hidden ? stop() : start());
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVis);
     return () => {
-      cancelAnimationFrame(raf);
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
       if (map.getLayer('alert-halo')) {
         map.setPaintProperty('alert-halo', 'circle-radius', 22);
         map.setPaintProperty('alert-halo', 'circle-opacity', 0.18);
@@ -468,81 +512,180 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
     const map = mapRef.current;
     if (!map || !ready) return;
 
+    let currentPopup: Popup | null = null;
+
+    const announce = (text: string) => {
+      if (liveRef.current) liveRef.current.textContent = text;
+    };
+
+    // T1 — popups in the design system: Space Grotesk title, tabular figures,
+    // status-coloured left border. A1 — mirror the content to the aria-live
+    // region so screen readers get what MapLibre injects as raw HTML.
+    const popup = (bodyHtml: string, lngLat: any, accent: string, sr: string) => {
+      currentPopup?.remove();
+      const p = new Popup({ closeButton: false, className: 'veg-popup', maxWidth: '300px' })
+        .setLngLat(lngLat)
+        .setHTML(`<div class="veg-popup__body" style="--veg-accent:${safeColor(accent)}">${bodyHtml}</div>`)
+        .addTo(map);
+      currentPopup = p;
+      p.on('close', () => {
+        if (currentPopup === p) currentPopup = null;
+      });
+      announce(sr);
+    };
+
     const clickDistrict = (e: any) => {
       const f = e.features?.[0];
       if (f?.properties?.districtId) selectDistrict(f.properties.districtId);
     };
-    const popup = (html: string, lngLat: any) =>
-      new Popup({ closeButton: false, className: 'veg-popup', maxWidth: '280px' })
-        .setLngLat(lngLat)
-        .setHTML(html)
-        .addTo(map);
+    // X5 — double-click pins a second district for side-by-side comparison.
+    const compareDistrict = (e: any) => {
+      const f = e.features?.[0];
+      if (f?.properties?.districtId) setCompareDistrict(f.properties.districtId);
+    };
 
-    // Defence-in-depth: everything interpolated into popup HTML is escaped,
-    // numbers are coerced, and colours must match a strict hex allowlist —
-    // even though these values originate from our own normalization pipeline.
     const onAlert = (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
+      const sev = String(p.severity).toUpperCase();
       popup(
-        `<strong>${esc(p.title)}</strong><br/><span style="color:${safeColor(p.color)}">● ${esc(String(p.severity).toUpperCase())}</span> · ${esc(p.source)}`,
-        e.lngLat
+        `<div class="veg-popup__title">${esc(p.title)}</div>` +
+          `<div class="veg-popup__meta" style="margin-top:4px"><span class="veg-popup__status">● ${esc(sev)}</span> · ${esc(p.source)}</div>`,
+        e.lngLat,
+        p.color,
+        `Hazard alert: ${p.title}. Severity ${p.severity}. Source ${p.source}.`
       );
     };
     const onQuake = (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
-      popup(`<strong>M${num(p.mag).toFixed(1)}</strong> ${esc(p.place)}`, e.lngLat);
+      const m = num(p.mag).toFixed(1);
+      popup(
+        `<div class="veg-popup__title">M<span class="veg-popup__num">${m}</span></div>` +
+          `<div class="veg-popup__meta" style="margin-top:2px">${esc(p.place)}</div>`,
+        e.lngLat,
+        '#a78bfa',
+        `Earthquake magnitude ${m} near ${p.place}.`
+      );
     };
     const onGauge = (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
       const arrow = p.trend === 'rising' ? '↑ rising' : p.trend === 'falling' ? '↓ falling' : '→ steady';
       popup(
-        `<strong>${esc(p.name)}</strong> · ${esc(p.river)}<br/>` +
-          `Discharge <strong>${num(p.discharge)} m³/s</strong> (${arrow})<br/>` +
-          `<span style="color:${safeColor(p.status)}">● ${esc(p.statusLabel)}</span> — ${num(p.ratio)}× the 31-day median (${num(p.median)} m³/s)<br/>` +
-          `7-day forecast peak: ${num(p.forecastMax)} m³/s<br/>` +
-          `<em>GloFAS via Open-Meteo</em>`,
-        e.lngLat
+        `<div class="veg-popup__title">${esc(p.name)} <span class="veg-popup__meta" style="font-weight:400">· ${esc(p.river)}</span></div>` +
+          `<div class="veg-popup__meta" style="margin-top:4px">Discharge <span class="veg-popup__num" style="color:#e2e8f0;font-weight:600">${qty(num(p.discharge), 'm³/s')}</span> (${arrow})</div>` +
+          `<div style="margin-top:2px"><span class="veg-popup__status">● ${esc(p.statusLabel)}</span> <span class="veg-popup__meta">— <span class="veg-popup__num">${num(p.ratio)}×</span> the 31-day median (<span class="veg-popup__num">${qty(num(p.median), 'm³/s')}</span>)</span></div>` +
+          `<div class="veg-popup__meta veg-popup__num" style="margin-top:2px">7-day forecast peak: ${qty(num(p.forecastMax), 'm³/s')}</div>` +
+          `<div class="veg-popup__meta" style="margin-top:4px;font-style:italic">GloFAS via Open-Meteo</div>`,
+        e.lngLat,
+        p.status,
+        `River station ${p.name} on the ${p.river}. Discharge ${num(p.discharge)} cubic metres per second, ${p.statusLabel}, ${num(p.ratio)} times the median.`
       );
+      // L5 — dedupe popup ⇄ panel: open the district drill-down and flash the
+      // station's row so the two surfaces are visibly linked.
+      if (p.districtId) selectDistrict(p.districtId);
+      if (p.stationId) highlightStation(p.stationId);
     };
     const onInfra = (e: any) => {
       const p = e.features?.[0]?.properties;
       if (!p) return;
-      popup(`<strong>${esc(p.name)}</strong><br/>${esc(p.type)} · <em>sample data</em>`, e.lngLat);
+      popup(
+        `<div class="veg-popup__title">${esc(p.name)}</div>` +
+          `<div class="veg-popup__meta" style="margin-top:2px">${esc(p.type)} · <span style="font-style:italic">sample data</span></div>`,
+        e.lngLat,
+        '#34d399',
+        `Facility: ${p.name}, ${p.type}. Sample data.`
+      );
     };
 
+    // Hover feedback:
+    //  · C3 — districts (fill/circle are PAINT props) brighten via feature-state.
+    //  · I3 — marker badges (icon-size is a LAYOUT prop, no feature-state) get a
+    //    hover halo ring that follows the pointer, reading as a scale-up.
+    const FS_SRC: Record<string, string> = {
+      'districts-fill': 'districts',
+      'risk-centroid-circles': 'risk-centroids',
+    };
+    let hoveredFS: { layer: string; id: string | number } | null = null;
+    const clearFS = () => {
+      if (hoveredFS != null) {
+        map.setFeatureState({ source: FS_SRC[hoveredFS.layer], id: hoveredFS.id } as any, { hover: false });
+        hoveredFS = null;
+      }
+    };
+    const clearHalo = () =>
+      (map.getSource('hover-halo') as maplibregl.GeoJSONSource)?.setData({ type: 'FeatureCollection', features: [] } as any);
+
+    const onMove = (layer: string) => (e: any) => {
+      const f = e.features?.[0];
+      if (f == null) return;
+      map.getCanvas().style.cursor = 'pointer';
+      if (FS_SRC[layer]) {
+        if (f.id == null) return;
+        if (hoveredFS && (hoveredFS.layer !== layer || hoveredFS.id !== f.id)) clearFS();
+        hoveredFS = { layer, id: f.id };
+        map.setFeatureState({ source: FS_SRC[layer], id: f.id } as any, { hover: true });
+      } else if (f.geometry?.type === 'Point') {
+        (map.getSource('hover-halo') as maplibregl.GeoJSONSource)?.setData({
+          type: 'FeatureCollection',
+          features: [{ type: 'Feature', properties: {}, geometry: f.geometry }],
+        } as any);
+      }
+    };
+    const onLeave = () => {
+      clearFS();
+      clearHalo();
+      map.getCanvas().style.cursor = '';
+    };
+
+    // L2 — Escape closes an open popup.
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape' && currentPopup) {
+        currentPopup.remove();
+        currentPopup = null;
+      }
+    };
+    window.addEventListener('keydown', onKey);
+
+    const moveHandlers: Record<string, (e: any) => void> = {};
     const hoverables = ['districts-fill', 'risk-centroid-circles', 'rainfall-icons', 'alert-icons', 'quake-icons', 'gauge-icons', 'infra-icons'];
-    const enter = () => (map.getCanvas().style.cursor = 'pointer');
-    const leave = () => (map.getCanvas().style.cursor = '');
+    hoverables.forEach((l) => {
+      moveHandlers[l] = onMove(l);
+      map.on('mousemove', l, moveHandlers[l]);
+      map.on('mouseleave', l, onLeave);
+    });
 
     map.on('click', 'districts-fill', clickDistrict);
     map.on('click', 'risk-centroid-circles', clickDistrict);
     map.on('click', 'rainfall-icons', clickDistrict);
+    map.on('dblclick', 'districts-fill', compareDistrict);
+    map.on('dblclick', 'risk-centroid-circles', compareDistrict);
     map.on('click', 'alert-icons', onAlert);
     map.on('click', 'quake-icons', onQuake);
     map.on('click', 'gauge-icons', onGauge);
     map.on('click', 'infra-icons', onInfra);
-    hoverables.forEach((l) => {
-      map.on('mouseenter', l, enter);
-      map.on('mouseleave', l, leave);
-    });
 
     return () => {
+      window.removeEventListener('keydown', onKey);
+      currentPopup?.remove();
+      clearFS();
+      clearHalo();
       map.off('click', 'districts-fill', clickDistrict);
       map.off('click', 'risk-centroid-circles', clickDistrict);
       map.off('click', 'rainfall-icons', clickDistrict);
+      map.off('dblclick', 'districts-fill', compareDistrict);
+      map.off('dblclick', 'risk-centroid-circles', compareDistrict);
       map.off('click', 'alert-icons', onAlert);
       map.off('click', 'quake-icons', onQuake);
       map.off('click', 'gauge-icons', onGauge);
       map.off('click', 'infra-icons', onInfra);
       hoverables.forEach((l) => {
-        map.off('mouseenter', l, enter);
-        map.off('mouseleave', l, leave);
+        map.off('mousemove', l, moveHandlers[l]);
+        map.off('mouseleave', l, onLeave);
       });
     };
-  }, [ready, selectDistrict]);
+  }, [ready, selectDistrict, setCompareDistrict, highlightStation]);
 
   /* ----------------------- fly to selected district ------------------------- */
   useEffect(() => {
@@ -574,8 +717,17 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
           </span>
         </div>
       )}
+      {/* A1 — screen-reader mirror of map popups (MapLibre injects raw HTML) */}
+      <div ref={liveRef} aria-live="polite" className="sr-only" />
     </div>
   );
+}
+
+/** Small deterministic string hash → non-negative int (for stable jitter). */
+function hashStr(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h);
 }
 
 /* ------------------------------ overlay setup ------------------------------ */
@@ -617,10 +769,11 @@ function ensureOverlays(map: MLMap) {
     source: 'districts',
     paint: {
       'fill-color': ['coalesce', ['feature-state', 'color'], '#334155'],
-      'fill-opacity': [
-        'interpolate', ['linear'], ['coalesce', ['feature-state', 'score'], 0],
-        0, 0.12, 40, 0.3, 70, 0.48, 100, 0.58,
-      ],
+      'fill-opacity': DISTRICT_FILL_OPACITY,
+      // I4 — ease the colour change so a district shifting Normal→Watch visibly
+      // transitions rather than snapping when risk recomputes. (Opacity is left
+      // un-transitioned; the layer pop-in tween drives it frame-by-frame.)
+      'fill-color-transition': { duration: 600, delay: 0 },
     },
   });
   addLayer({
@@ -639,14 +792,14 @@ function ensureOverlays(map: MLMap) {
       geometry: { type: 'Point', coordinates: d.centroid },
     })),
   };
-  addSource('risk-centroids', { type: 'geojson', data: seed as any });
+  addSource('risk-centroids', { type: 'geojson', data: seed as any, generateId: true });
   addLayer({
     id: 'risk-centroid-circles',
     type: 'circle',
     source: 'risk-centroids',
     paint: {
       'circle-color': ['get', 'color'],
-      'circle-opacity': 0.55,
+      'circle-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 0.75, 0.55],
       'circle-radius': ['interpolate', ['linear'], ['get', 'score'], 0, 8, 100, 30],
       'circle-stroke-color': ['get', 'color'],
       'circle-stroke-width': 1.5,
@@ -664,7 +817,14 @@ function ensureOverlays(map: MLMap) {
     filter: ['>=', ['get', 'intensity'], 0.2],
     layout: {
       'icon-image': 'rain-icon',
-      'icon-size': ['interpolate', ['linear'], ['get', 'intensity'], 0.2, 0.55, 2, 0.8, 8, 1.1, 20, 1.5],
+      // I5 — multiply base intensity size by the per-district jitter, and nudge
+      // by a deterministic offset, so icons don't line up on a grid.
+      'icon-size': [
+        '*',
+        ['coalesce', ['get', 'jitter'], 1],
+        ['interpolate', ['linear'], ['get', 'intensity'], 0.2, 0.55, 2, 0.8, 8, 1.1, 20, 1.5],
+      ],
+      'icon-offset': ['coalesce', ['get', 'offset'], ['literal', [0, 0]]],
       'icon-allow-overlap': true,
       'icon-ignore-placement': true,
     },
@@ -749,6 +909,23 @@ function ensureOverlays(map: MLMap) {
       visibility: 'none',
     },
     paint: { 'icon-opacity': 1 },
+  });
+
+  // I3 — hover halo: a soft ring that follows the pointer over any marker,
+  // giving badge hover feedback without feature-state in layout properties.
+  addSource('hover-halo', { type: 'geojson', data: empty });
+  addLayer({
+    id: 'hover-halo-ring',
+    type: 'circle',
+    source: 'hover-halo',
+    paint: {
+      'circle-radius': 18,
+      'circle-color': 'rgba(0,0,0,0)',
+      'circle-stroke-color': '#e2e8f0',
+      'circle-stroke-width': 2,
+      'circle-stroke-opacity': 0.75,
+      'circle-radius-transition': { duration: 120 },
+    },
   });
 }
 

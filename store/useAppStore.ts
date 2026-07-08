@@ -15,11 +15,22 @@ interface AppState {
 
   activeLayers: Set<LayerId>;
   toggleLayer: (id: LayerId) => void;
+  /** Replace the whole active-layer set (used by URL hydration). */
+  setActiveLayers: (ids: LayerId[]) => void;
   /** Last toggle action — drives the layer toast + map pop-in animation. */
   lastLayerEvent: { id: LayerId; on: boolean; at: number } | null;
 
   selectedDistrictId: string | null;
   selectDistrict: (id: string | null) => void;
+
+  /** Second, pinned district for side-by-side compare (X5). */
+  compareDistrictId: string | null;
+  setCompareDistrict: (id: string | null) => void;
+
+  /** River station whose panel row should flash-highlight when its map marker
+   *  is clicked (L5 — dedupe popup ⇄ panel). */
+  highlightedStationId: string | null;
+  highlightStation: (id: string | null) => void;
 
   /** Timeline position: hours from now (0 = now, up to 72). */
   timelineHour: number;
@@ -29,9 +40,17 @@ interface AppState {
 
   layerPanelOpen: boolean;
   setLayerPanelOpen: (open: boolean) => void;
+  /** Collapsed = slim vertical icon rail instead of the full panel (L4). */
+  layerCollapsed: boolean;
+  setLayerCollapsed: (v: boolean) => void;
+  toggleLayerCollapsed: () => void;
 
   infoOpen: boolean;
   setInfoOpen: (open: boolean) => void;
+
+  /** Keyboard-shortcuts help overlay (A5). */
+  shortcutsOpen: boolean;
+  setShortcutsOpen: (open: boolean) => void;
 }
 
 const defaultLayers = new Set<LayerId>(LAYERS.filter((l) => l.defaultOn).map((l) => l.id));
@@ -53,9 +72,17 @@ export const useAppStore = create<AppState>((set) => ({
       else next.delete(id);
       return { activeLayers: next, lastLayerEvent: { id, on, at: Date.now() } };
     }),
+  setActiveLayers: (ids) => set({ activeLayers: new Set(ids) }),
 
   selectedDistrictId: null,
-  selectDistrict: (id) => set({ selectedDistrictId: id }),
+  selectDistrict: (id) => set({ selectedDistrictId: id, highlightedStationId: null }),
+
+  compareDistrictId: null,
+  setCompareDistrict: (id) =>
+    set((s) => ({ compareDistrictId: id === s.selectedDistrictId ? null : id })),
+
+  highlightedStationId: null,
+  highlightStation: (id) => set({ highlightedStationId: id }),
 
   timelineHour: 0,
   setTimelineHour: (h) => set({ timelineHour: h }),
@@ -64,7 +91,13 @@ export const useAppStore = create<AppState>((set) => ({
 
   layerPanelOpen: true,
   setLayerPanelOpen: (open) => set({ layerPanelOpen: open }),
+  layerCollapsed: false,
+  setLayerCollapsed: (v) => set({ layerCollapsed: v }),
+  toggleLayerCollapsed: () => set((s) => ({ layerCollapsed: !s.layerCollapsed })),
 
   infoOpen: false,
   setInfoOpen: (open) => set({ infoOpen: open }),
+
+  shortcutsOpen: false,
+  setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
 }));

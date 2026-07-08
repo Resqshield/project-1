@@ -5,7 +5,6 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Severity scale — reserved strictly for hazard levels (IMD-consistent)
         sev: {
           green: '#22c55e',
           yellow: '#eab308',
@@ -18,6 +17,7 @@ const config: Config = {
           800: '#111827',
           700: '#1c2536',
           400: '#8b98b8',
+          300: '#aab6d4',
           200: '#cbd5e8',
         },
         accent: {
