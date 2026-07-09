@@ -28,6 +28,10 @@ import { useAppStore } from '@/store/useAppStore';
 
 const DARK_STYLE_URL = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json';
 
+/** Sea colour for the dark basemap — a deep muted ocean blue that reads clearly
+ *  as water without breaking the dark-glass aesthetic. */
+const SEA_BLUE = '#0f3355';
+
 /** Inline boot style — dark-tinted OSM raster. Zero style-fetch dependency. */
 const BOOT_DARK_STYLE: any = {
   version: 8,
@@ -239,6 +243,7 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
     const attach = () => {
       try {
         ensureOverlays(map);
+        tintSeaBlue(map);
         setEpoch((n) => n + 1);
       } catch (err) {
         console.error('[vegvisir] overlay attach failed:', err);
@@ -721,6 +726,34 @@ export default function MapCanvas({ risk, rain, alerts, quakes, rivers }: Props)
       <div ref={liveRef} aria-live="polite" className="sr-only" />
     </div>
   );
+}
+
+/**
+ * Recolour the basemap's water to blue. The CARTO Dark Matter vector style
+ * paints the sea near-black; we tint every water fill (and waterway line) so
+ * the coastline reads. Runs on every style.load, so it survives basemap swaps.
+ * The satellite style is raster-only (no water layer), so it's left untouched.
+ */
+function tintSeaBlue(map: MLMap) {
+  let style: any;
+  try {
+    style = map.getStyle();
+  } catch {
+    return;
+  }
+  if (!style?.layers) return;
+  for (const layer of style.layers) {
+    if (!/water|ocean|sea|marine/i.test(layer.id)) continue;
+    try {
+      if (layer.type === 'fill') {
+        map.setPaintProperty(layer.id, 'fill-color', SEA_BLUE);
+      } else if (layer.type === 'line') {
+        map.setPaintProperty(layer.id, 'line-color', SEA_BLUE);
+      }
+    } catch {
+      /* layer not paintable — skip */
+    }
+  }
 }
 
 /** Small deterministic string hash → non-negative int (for stable jitter). */
