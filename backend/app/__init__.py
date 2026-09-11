@@ -1,0 +1,1 @@
+"""ResQShield backend application package."""
