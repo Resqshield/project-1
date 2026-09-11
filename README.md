@@ -161,6 +161,26 @@ The storage convention (`backend/app/storage/convention.py`) generates determini
 - **Model Registry:** `[prefix/]models/<model>/<version>/<filename>`
 - **Operational Attachments:** `[prefix/]attachments/<entity_type>/<entity_code>/<YYYY>/<MM>/<filename>`
 
+## Rainfall Feature Foundation (T04)
+
+The rainfall history feature layer (`backend/app/features/rainfall.py`) converts timestamped environmental observations into historical accumulation features for downstream hazard models:
+
+- **Observation Semantics:** Incremental precipitation (in mm) measured during the sampling interval ending at `observed_at`.
+- **Supported Windows:** `rain_30m` (30m), `rain_1h` (1h), `rain_3h` (3h), `rain_6h` (6h), `rain_24h` (24h), `rain_3d` (3d), `rain_7d` (7d).
+- **Boundary Rule:** Half-open interval `(evaluation_time - window_duration, evaluation_time]`.
+- **Missing Data Safety (Missing != Zero):**
+  - Empty window (no readings) results in `value = None` and `quality_status = "EMPTY"`.
+  - Missing/failed readings result in `value = None` and `quality_status = "MISSING"`.
+  - Incomplete windows result in `quality_status = "PARTIAL"` with explicit `coverage_ratio < 1.0` (never coerced to 0.0 mm).
+  - Genuine zero rainfall reports `value = 0.0` with `quality_status = "COMPLETE"`.
+- **Staleness Tracking:** Freshness is calculated dynamically from `evaluation_time - latest_observation_timestamp`. Readings exceeding `stale_threshold_seconds` are flagged as `is_stale = True`.
+
+### Run T04 Tests
+
+```powershell
+pytest backend/tests/test_rainfall_features.py -v
+```
+
 ## License
 
 Internal — SIH 2024 project.
