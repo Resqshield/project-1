@@ -34,6 +34,10 @@ class TestSettingsDefaults:
         settings = Settings(_env_file=None)
         assert "localhost" in settings.database_url
 
+    def test_default_database_url_sync_is_placeholder(self):
+        settings = Settings(_env_file=None)
+        assert "localhost" in settings.database_url_sync
+
     def test_default_mqtt_broker_host(self):
         settings = Settings(_env_file=None)
         assert settings.mqtt_broker_host == "localhost"
@@ -53,6 +57,10 @@ class TestSettingsDefaults:
     def test_default_storage_bucket(self):
         settings = Settings(_env_file=None)
         assert settings.storage_bucket == "resqshield-data"
+
+    def test_default_storage_base_prefix_is_empty(self):
+        settings = Settings(_env_file=None)
+        assert settings.storage_base_prefix == ""
 
     def test_default_model_artifact_dir_is_relative(self):
         settings = Settings(_env_file=None)
@@ -103,6 +111,11 @@ class TestSettingsOverride:
         settings = Settings(_env_file=None)
         assert settings.database_url == "postgresql+asyncpg://prod:secret@db:5432/prod"
 
+    def test_database_url_sync_override(self, monkeypatch):
+        monkeypatch.setenv("RESQ_DATABASE_URL_SYNC", "postgresql+psycopg2://prod:secret@db:5432/prod")
+        settings = Settings(_env_file=None)
+        assert settings.database_url_sync == "postgresql+psycopg2://prod:secret@db:5432/prod"
+
     def test_mqtt_broker_host_override(self, monkeypatch):
         monkeypatch.setenv("RESQ_MQTT_BROKER_HOST", "mqtt.example.com")
         settings = Settings(_env_file=None)
@@ -112,6 +125,11 @@ class TestSettingsOverride:
         monkeypatch.setenv("RESQ_STORAGE_BUCKET", "my-custom-bucket")
         settings = Settings(_env_file=None)
         assert settings.storage_bucket == "my-custom-bucket"
+
+    def test_storage_base_prefix_override(self, monkeypatch):
+        monkeypatch.setenv("RESQ_STORAGE_BASE_PREFIX", "deployments/pilot1")
+        settings = Settings(_env_file=None)
+        assert settings.storage_base_prefix == "deployments/pilot1"
 
 
 class TestNoHardcodedPaths:

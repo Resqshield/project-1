@@ -37,6 +37,7 @@ class Settings(BaseSettings):
 
     # --- Database (placeholder — not connected in B01) ---
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/resqshield"
+    database_url_sync: str = "postgresql+psycopg2://user:password@localhost:5432/resqshield"
 
     # --- MQTT Broker (placeholder — not connected in B01) ---
     mqtt_broker_host: str = "localhost"
@@ -46,6 +47,7 @@ class Settings(BaseSettings):
     # --- Object Storage (placeholder — not connected in B01) ---
     storage_endpoint: str = "http://localhost:9000"
     storage_bucket: str = "resqshield-data"
+    storage_base_prefix: str = ""
 
     # --- ML / Artifacts ---
     model_artifact_dir: str = "./artifacts"
