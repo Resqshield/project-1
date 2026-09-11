@@ -1,0 +1,118 @@
+# ResQShield — Flood Baseline Experiment Configuration
+# -------------------------------------------------------
+# Day 1 / B22 baseline: GradientBoosting regressor.
+#
+# IMPORTANT: No approved real dataset is configured here.
+# The training CLI will validate this and exit gracefully with:
+#   ERROR: No approved dataset configured. Set data.input_path in
+#          configs/flood_baseline.yaml.
+#
+# Do NOT add a real dataset path until it has been reviewed and approved
+# by the ResQShield data-governance process.
+#
+# Upstream reference (MIT License):
+#   ECMWFCode4Earth/ml_flood — MATEHIW, ESoWC 2019
+#   Authors: @lkugler, @seblehner
+#   URL: https://github.com/ECMWFCode4Earth/ml_flood
+
+# ─── Experiment Identity ────────────────────────────────────────────────────────
+experiment:
+  name: "flood_baseline_v1"
+  description: "Day-1 B22 baseline: GradientBoosting flood-level regressor"
+  seed: 42
+  version: "1.0.0"
+
+# ─── Data Paths ─────────────────────────────────────────────────────────────────
+data:
+  # input_path is intentionally absent / empty.
+  # Set this to a real approved CSV before training:
+  #   input_path: "data/raw/approved_sensor_data.csv"
+  input_path: null
+
+  timestamp_col: "timestamp"
+  target_col: "water_level_m"
+  station_id_col: "station_id"   # optional
+
+# ─── Train / Validation / Test Split ────────────────────────────────────────────
+# Chronological only — NEVER shuffle time-series data
+split:
+  train_end: "2023-12-31"
+  val_end: "2024-06-30"
+
+# ─── Feature Engineering ────────────────────────────────────────────────────────
+# Adapted from ECMWFCode4Earth/ml_flood::utils_floodmodel.py (MIT License)
+features:
+  lag_hours: [1, 2, 3, 6, 12, 24, 48, 72]
+  rolling_sum_windows: [3, 6, 12, 24, 48, 72]
+  delta_features:
+    - col: "water_level_m"
+      windows: [1, 3, 6]
+  dynamic_sensor_cols:
+    - rainfall_mm_hr
+    - soil_moisture_pct
+    - water_level_m
+    - upstream_rainfall_mm_hr
+  forecast_cols:
+    - forecast_rainfall_3h_mm
+    - forecast_rainfall_6h_mm
+    - forecast_rainfall_24h_mm
+  drop_cols:
+    - station_id
+    - notes
+
+# ─── Alert Thresholds ────────────────────────────────────────────────────────────
+alert:
+  # PLACEHOLDER values — replace with site-specific CWC/IMD thresholds
+  warning_level_m: 3.5
+  danger_level_m: 5.0
+  extreme_danger_level_m: 7.0
+
+# ─── Model Configuration ─────────────────────────────────────────────────────────
+model:
+  kind: "gradient_boosting"   # B22 baseline uses sklearn GradientBoostingRegressor
+
+  gradient_boosting:
+    n_estimators: 300
+    max_depth: 5
+    learning_rate: 0.05
+    subsample: 0.8
+    min_samples_split: 10
+    min_samples_leaf: 5
+    random_state: 42           # seed is also applied globally from experiment.seed
+
+  xgboost:
+    n_estimators: 500
+    max_depth: 6
+    learning_rate: 0.05
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_weight: 3
+    gamma: 0.0
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    objective: "reg:squarederror"
+    eval_metric: "rmse"
+    early_stopping_rounds: 50
+    random_state: 42
+    n_jobs: -1
+
+# ─── Evaluation ──────────────────────────────────────────────────────────────────
+evaluation:
+  regression_metrics:
+    - "RMSE"
+    - "MAE"
+    - "NSE"
+    - "ME"
+    - "R2"
+  # Event / classification metrics run ONLY when a threshold is explicitly configured
+  # (see alert section above).  Do NOT invent a threshold.
+  classification_metrics:
+    - "precision"
+    - "recall"
+    - "f1"
+
+# ─── Artifacts ───────────────────────────────────────────────────────────────────
+artifacts:
+  model_dir: "artifacts/models"
+  metrics_dir: "artifacts/metrics"
+  configs_dir: "artifacts/configs"

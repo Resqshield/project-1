@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: resqshield-ml
+Version: 1.0.0
+Summary: ResQShield AI — Flood & Landslide Early Warning ML Pipeline
+Author: ResQShield Team
+License: MIT
+Requires-Python: >=3.10
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: scikit-learn>=1.3.0
+Requires-Dist: joblib>=1.3.0
+Requires-Dist: PyYAML>=6.0.0
+Provides-Extra: xgboost
+Requires-Dist: xgboost>=1.7.0; extra == "xgboost"
+Provides-Extra: hpo
+Requires-Dist: hyperopt>=0.2.7; extra == "hpo"
+Provides-Extra: viz
+Requires-Dist: matplotlib>=3.7.0; extra == "viz"
+Requires-Dist: seaborn>=0.12.0; extra == "viz"
+Provides-Extra: dev
+Requires-Dist: pytest>=7.4.0; extra == "dev"
+Requires-Dist: pytest-cov>=4.0.0; extra == "dev"
+Provides-Extra: all
+Requires-Dist: xgboost>=1.7.0; extra == "all"
+Requires-Dist: hyperopt>=0.2.7; extra == "all"
+Requires-Dist: matplotlib>=3.7.0; extra == "all"
+Requires-Dist: seaborn>=0.12.0; extra == "all"
