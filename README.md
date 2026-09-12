@@ -99,7 +99,7 @@ python -m backend.app.seed.seed_dev_data
 
 > [!NOTE]
 > All seeded fixtures use synthetic identifiers (`DEV_REGION_001`, `DEV_CATCHMENT_001`, `DEV_VILLAGE_001`, etc.).
-> Real pilot seed data replacement remains **blocked by T01** until the geography is frozen.
+> Pilot geography is frozen by T99/T01. Synthetic `DEV_*` fixtures remain intentionally separate until verified pilot GIS/station datasets are loaded.
 
 #### Stop or reset the development database safely:
 
@@ -149,8 +149,8 @@ All settings are environment-driven with the `RESQ_` prefix. See [`.env.example`
 | `RESQ_STORAGE_BUCKET` | `resqshield-data` | Object storage bucket |
 | `RESQ_STORAGE_BASE_PREFIX` | `""` | Optional base key prefix |
 | `RESQ_MODEL_ARTIFACT_DIR` | `./artifacts` | ML model artifact directory |
-| `RESQ_PILOT_ID` | `PILOT_PLACEHOLDER` | Configurable pilot identifier |
-| `RESQ_HOLDOUT_ID` | `HOLDOUT_PLACEHOLDER` | Configurable holdout identifier |
+| `RESQ_PILOT_ID` | `HP_MANDI_PANDOH_CORRIDOR` | Configurable pilot identifier |
+| `RESQ_HOLDOUT_ID` | `UK_DEHRADUN_RAIPUR_KUMALDA` | Configurable holdout identifier |
 
 ## Object Storage Convention
 

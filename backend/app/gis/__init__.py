@@ -1,0 +1,1 @@
+﻿"""Static GIS package contracts."""

@@ -53,9 +53,9 @@ class Settings(BaseSettings):
     model_artifact_dir: str = "./artifacts"
 
     # --- Pilot Configuration ---
-    # External dependencies — do NOT hard-code final geography.
-    pilot_id: str = "PILOT_PLACEHOLDER"
-    holdout_id: str = "HOLDOUT_PLACEHOLDER"
+    # Geography frozen by T99/T01; environment variables may override for deployment.
+    pilot_id: str = "HP_MANDI_PANDOH_CORRIDOR"
+    holdout_id: str = "UK_DEHRADUN_RAIPUR_KUMALDA"
 
 
 @lru_cache

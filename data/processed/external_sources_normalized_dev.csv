@@ -1,0 +1,4 @@
+source_id,source_type,metric,observed_at,ingested_at,value,unit,temporal_resolution_minutes,spatial_resolution_m,source_age_seconds,latency_seconds,provenance_status,adapter_name
+DEV_RAIN_SOURCE,RAINFALL,rainfall_mm,2026-09-12T11:50:00+00:00,2026-09-12T11:52:00+00:00,12.5,mm,5.0,1000.0,600.0,120.0,MEASURED,csv_rainfall
+DEV_RAIN_SOURCE,RAINFALL,rainfall_mm,2026-09-12T11:55:00+00:00,2026-09-12T11:56:00+00:00,,mm,5.0,1000.0,300.0,60.0,MEASURED,csv_rainfall
+DEV_HYDRO_SOURCE,HYDROLOGY,water_level_m,2026-09-12T11:45:00+00:00,2026-09-12T11:48:00+00:00,1.85,m,15.0,500.0,900.0,180.0,MEASURED,geojson_hydrology

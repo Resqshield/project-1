@@ -69,13 +69,13 @@ class TestSettingsDefaults:
         assert "C:\\" not in settings.model_artifact_dir
         assert "/home/" not in settings.model_artifact_dir
 
-    def test_default_pilot_id_is_placeholder(self):
+    def test_default_pilot_id_is_frozen_mandi(self):
         settings = Settings(_env_file=None)
-        assert settings.pilot_id == "PILOT_PLACEHOLDER"
+        assert settings.pilot_id == "HP_MANDI_PANDOH_CORRIDOR"
 
-    def test_default_holdout_id_is_placeholder(self):
+    def test_default_holdout_id_is_frozen_uttarakhand(self):
         settings = Settings(_env_file=None)
-        assert settings.holdout_id == "HOLDOUT_PLACEHOLDER"
+        assert settings.holdout_id == "UK_DEHRADUN_RAIPUR_KUMALDA"
 
 
 class TestSettingsOverride:

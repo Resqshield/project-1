@@ -1,0 +1,63 @@
+{
+  "type": "FeatureCollection",
+  "name": "verified_hazard_history_mandi_pandoh_2023",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "EPSG:4326"
+    }
+  },
+  "metadata": {
+    "pilot_id": "HP_MANDI_PANDOH_CORRIDOR",
+    "scope": "Verified historical flood and landslide replay events",
+    "geometry_note": "Event evidence and geometry are separate: event occurrence comes from authoritative reports; OSM settlement centroids provide spatial anchors."
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "event_id": "HP_MANDI_PANDOH_FLOOD_2023_07",
+        "hazard_type": "flood",
+        "start_date": "2023-07-07",
+        "end_date": "2023-07-11",
+        "location_name": "Pandoh, Mandi, Himachal Pradesh",
+        "event_status": "VERIFIED",
+        "evidence_source": "Himachal Pradesh State Disaster Management Authority, Post Disaster Needs Assessment Monsoon 2023; Sphere India Himachal Pradesh Floods July 2023 assessment",
+        "evidence_note": "July 7-11 2023 extreme rainfall/flood spell; Pandoh, Mandi documented as significantly affected by flooding.",
+        "geometry_source": "OpenStreetMap settlement layer",
+        "geometry_precision": "Pandoh settlement centroid",
+        "pilot_id": "HP_MANDI_PANDOH_CORRIDOR"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.0556492,
+          31.6687091
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "event_id": "HP_MANDI_TARNA_LANDSLIDE_2023_08_14",
+        "hazard_type": "landslide",
+        "start_date": "2023-08-14",
+        "end_date": "2023-08-14",
+        "location_name": "Tarna Hill, Mandi, Himachal Pradesh",
+        "event_status": "VERIFIED",
+        "evidence_source": "Geological Survey of India, Landslides in Mandi District, Himachal Pradesh on July, August and September 2023",
+        "evidence_note": "GSI reports a debris slide near HPPWD Circuit House at Tarna Hill on 14 August 2023.",
+        "geometry_source": "OpenStreetMap settlement layer",
+        "geometry_precision": "Mandi settlement centroid; Tarna Hill event location represented approximately",
+        "pilot_id": "HP_MANDI_PANDOH_CORRIDOR"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          76.9293782,
+          31.7084496
+        ]
+      }
+    }
+  ]
+}

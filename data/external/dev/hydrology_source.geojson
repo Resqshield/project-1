@@ -1,0 +1,22 @@
+﻿{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "source_id": "DEV_HYDRO_SOURCE",
+        "observed_at": "2026-09-12T11:45:00Z",
+        "ingested_at": "2026-09-12T11:48:00Z",
+        "water_level_m": 1.85,
+        "unit": "m",
+        "temporal_resolution_minutes": 15.0,
+        "spatial_resolution_m": 500.0,
+        "provenance_status": "MEASURED"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [77.05, 31.67]
+      }
+    }
+  ]
+}

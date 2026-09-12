@@ -1,0 +1,54 @@
+{
+  "pilot_id": "HP_MANDI_PANDOH_CORRIDOR",
+  "crs": "EPSG:4326",
+  "layers": [
+    {
+      "layer_id": "dem",
+      "description": "Digital elevation model",
+      "status": "READY",
+      "file_path": "data/gis/dem/srtm_gl1_mandi_pandoh_30m.tif"
+    },
+    {
+      "layer_id": "slope",
+      "description": "Slope derived from DEM",
+      "status": "READY",
+      "file_path": "data/gis/slope/slope_mandi_pandoh_deg.tif"
+    },
+    {
+      "layer_id": "drainage",
+      "description": "Drainage / stream network",
+      "status": "READY",
+      "file_path": "data/gis/drainage/osm_waterways_mandi_pandoh.geojson"
+    },
+    {
+      "layer_id": "geology_soil",
+      "description": "Geology / soil context",
+      "status": "READY",
+      "file_path": "data/gis/geology_soil/soil_texture_mandi_pandoh_0_5cm.tif"
+    },
+    {
+      "layer_id": "lulc",
+      "description": "Land use / land cover",
+      "status": "READY",
+      "file_path": "data/gis/lulc/esa_worldcover_2021_mandi_pandoh_10m.tif"
+    },
+    {
+      "layer_id": "roads",
+      "description": "Road network",
+      "status": "READY",
+      "file_path": "data/gis/roads/osm_roads_mandi_pandoh.geojson"
+    },
+    {
+      "layer_id": "villages",
+      "description": "Village / settlement layer",
+      "status": "READY",
+      "file_path": "data/gis/villages/osm_settlements_mandi_pandoh.geojson"
+    },
+    {
+      "layer_id": "hazard_history",
+      "description": "Historical flood / landslide inventory",
+      "status": "READY",
+      "file_path": "data/gis/hazard_history/verified_hazard_history_mandi_pandoh_2023.geojson"
+    }
+  ]
+}

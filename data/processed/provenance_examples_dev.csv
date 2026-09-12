@@ -1,0 +1,5 @@
+provenance_type,source_id,source_timestamp,method,uncertainty_score,is_estimated,display_label,display_badge
+MEASURED,DEV_SENSOR_001,2026-09-12T12:00:00+00:00,direct_sensor_reading,0.05,False,Measured,MEASURED
+IMPUTED,DEV_SENSOR_001,2026-09-12T12:00:00+00:00,linear_interpolation,0.25,True,Imputed,ESTIMATED — IMPUTED
+FALLBACK_DERIVED,DEV_SATELLITE_001,2026-09-12T12:00:00+00:00,satellite_fallback,0.35,True,Fallback-derived,ESTIMATED — FALLBACK-DERIVED
+MODEL_ESTIMATED,DEV_MODEL_001,2026-09-12T12:00:00+00:00,model_inference,0.2,True,Model-estimated,ESTIMATED — MODEL-ESTIMATED
