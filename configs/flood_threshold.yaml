@@ -1,0 +1,92 @@
+# ResQShield — Flash-Flood Threshold Baseline Configuration (T09)
+# ─────────────────────────────────────────────────────────────────
+# Explainable rule-based flash-flood early warning baseline.
+#
+# References:
+#   CWC AFF Portal threshold semantics (aff.india-water.gov.in):
+#     Warning Level (WL)  — Above Normal flood situation
+#     Danger Level (DL)   — Flooding in low-lying areas begins
+#     HFL                 — Highest Flood Level (all-time historical)
+#
+# ┌────────────────────────────────────────────────────────────────┐
+# │  ALL THRESHOLD VALUES ARE NULL BY DEFAULT.                     │
+# │  Region/station-specific calibration is REQUIRED.              │
+# │                                                                │
+# │  For CWC-monitored river stations:                             │
+# │    - Warning Level (WL) and Danger Level (DL) are available    │
+# │      per station from aff.india-water.gov.in after verifying  │
+# │      station-specific values.                                  │
+# │    - Rainfall thresholds must be derived from local IMD data.  │
+# │    - Rate-of-rise thresholds require catchment response       │
+# │      time analysis.                                            │
+# │                                                                │
+# │  Do NOT insert generic, illustrative, or literature-derived    │
+# │  values into this file.                                        │
+# │                                                                │
+# │  The model will refuse to instantiate while any value is       │
+# │  null (raises FloodThresholdsNotCalibratedError).              │
+# └────────────────────────────────────────────────────────────────┘
+
+experiment:
+  name: "flood_threshold_baseline_v1"
+  description: >-
+    Flash-flood explainable threshold baseline (T09).
+    Rule-based model with no trainable parameters.
+    Calibrate thresholds per station before operational use.
+  version: "1.0.0"
+  data_source: "CWC/NWDP (pending formal data request)"
+  station: null    # Set to CWC station code once data is obtained
+  basin: null      # Set to CWC basin name once data is obtained
+
+thresholds:
+
+  # Cumulative rainfall thresholds (mm over window duration)
+  # Calibrate from IMD district-level rainfall statistics and
+  # local flash-flood event records for the target catchment.
+
+  rainfall_1h:
+    low: null       # mm — set per catchment
+    moderate: null  # mm — set per catchment (moderate alert)
+    high: null      # mm — set per catchment (high alert)
+
+  rainfall_3h:
+    low: null       # mm — set per catchment
+    moderate: null  # mm — set per catchment
+    high: null      # mm — set per catchment
+
+  rainfall_6h:
+    low: null       # mm — set per catchment
+    moderate: null  # mm — set per catchment
+    high: null      # mm — set per catchment
+
+  rainfall_12h:
+    low: null       # mm — set per catchment
+    moderate: null  # mm — set per catchment
+    high: null      # mm — set per catchment
+
+  rainfall_24h:
+    low: null       # mm — set per catchment
+    moderate: null  # mm — set per catchment
+    high: null      # mm — set per catchment
+
+  # Antecedent wetness (API or soil moisture proxy)
+  # Calibrate from in-situ sensor data or satellite soil moisture
+  # (SMAP / SMOS) validated for the specific soil type at the site.
+  antecedent_wetness:
+    moderate: null  # API value or % — set per soil type
+    high: null      # API value or % — set per soil type
+
+  # Water level thresholds (metres above MSL)
+  # Use CWC Warning Level (WL) and Danger Level (DL) for the specific
+  # gauging station from aff.india-water.gov.in.
+  # Verify the station code and confirm the values are for THIS station.
+  water_level:
+    warning_level_m: null   # m MSL — from CWC AFF (WL for this station)
+    danger_level_m: null    # m MSL — from CWC AFF (DL for this station)
+    hfl_m: null             # m MSL — from CWC AFF (HFL for this station)
+
+  # Rate of rise (m/hr)
+  # Calibrate from historical flash-flood rise-rate analysis.
+  rate_of_rise:
+    warning_m_per_hr: null  # m/hr — set from catchment response time
+    critical_m_per_hr: null # m/hr — set from catchment response time

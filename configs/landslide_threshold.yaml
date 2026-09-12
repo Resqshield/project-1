@@ -1,0 +1,81 @@
+# ResQShield — Landslide Threshold Baseline Configuration (T07)
+# ──────────────────────────────────────────────────────────────
+# LHASA v1.1-inspired heuristic for landslide early warning.
+#
+# Scientific reference:
+#   Kirschbaum & Stanley (2018). "Satellite-Based Assessment of
+#   Rainfall-Triggered Landslide Hazard for Situational Awareness."
+#   Natural Hazards, 87(1), 77–97.
+#
+# ┌────────────────────────────────────────────────────────────┐
+# │  ALL THRESHOLD VALUES ARE NULL BY DEFAULT.                 │
+# │  Region-specific calibration is REQUIRED before any        │
+# │  operational use.                                          │
+# │                                                            │
+# │  Do NOT insert generic, illustrative, or literature-       │
+# │  derived values into this file.  Thresholds must come      │
+# │  from site-specific analysis of local meteorological,      │
+# │  geological, and hydrological conditions.                  │
+# │                                                            │
+# │  The model will refuse to instantiate while any value is   │
+# │  null (raises ThresholdsNotCalibratedError).               │
+# └────────────────────────────────────────────────────────────┘
+
+# ─── Experiment Identity ─────────────────────────────────────────────────────
+experiment:
+  name: "landslide_threshold_baseline_v1"
+  description: >-
+    LHASA v1.1-inspired heuristic landslide threshold baseline (T07).
+    Rule-based model with no trainable parameters.
+    All alert decisions are fully explainable.
+  version: "1.0.0"
+
+# ─── Threshold Configuration ─────────────────────────────────────────────────
+# Every threshold must be calibrated per deployment region.
+# The model cannot be used while any value is null.
+
+thresholds:
+
+  # Rainfall intensity classification (mm/hr)
+  # Categories: NONE → LIGHT → MODERATE → HEAVY → EXTREME
+  # Calibrate using local meteorological authority data (e.g. IMD
+  # district-level rainfall statistics, local AWS records).
+  rainfall_intensity:
+    light: null        # mm/hr — set per region
+    moderate: null     # mm/hr — set per region
+    heavy: null        # mm/hr — set per region
+    extreme: null      # mm/hr — set per region
+
+  # Antecedent wetness / soil saturation (%)
+  # Categories: DRY → MOIST → WET → SATURATED
+  # Calibrate using in-situ soil sensor data or SMAP/SMOS validation
+  # for the specific soil type at the deployment site.
+  antecedent_wetness:
+    moist: null        # % soil moisture — set per soil type
+    wet: null          # % soil moisture — set per soil type
+    saturated: null    # % soil moisture — set per soil type
+
+  # Water level state (metres above datum)
+  # Categories: NORMAL → ELEVATED → HIGH → CRITICAL
+  # Calibrate using CWC gauge warning/danger levels for the specific
+  # station or reach.
+  water_level:
+    elevated: null     # metres — set per station / CWC gauge
+    high: null         # metres — set per station / CWC gauge
+    critical: null     # metres — set per station / CWC gauge
+
+  # Rate of water-level rise (m/hr)
+  # Categories: STABLE → RISING → WARNING → CRITICAL
+  # Calibrate using catchment response time analysis.
+  rate_of_rise:
+    warning: null      # m/hr — set per catchment response time
+    critical: null     # m/hr — set per catchment response time
+
+  # Terrain susceptibility score (0–1 continuous scale)
+  # Derived from slope, lithology, land cover, distance to faults, etc.
+  # Categories: LOW → MODERATE → HIGH
+  # Calibrate using GSI/NDMA susceptibility mapping or site-specific
+  # geotechnical assessment.
+  terrain_susceptibility:
+    moderate: null     # score 0–1 — set from susceptibility analysis
+    high: null         # score 0–1 — set from susceptibility analysis
