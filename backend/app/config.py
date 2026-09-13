@@ -35,6 +35,12 @@ class Settings(BaseSettings):
     api_port: int = 8000
     api_prefix: str = "/api/v1"
 
+    # --- Authentication / Security ---
+    # Development default only. Production must override RESQ_JWT_SECRET_KEY.
+    jwt_secret_key: str = "dev-only-change-me-use-at-least-32-bytes"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 30
+    mfa_issuer: str = "ResQShield"
     # --- Database (placeholder — not connected in B01) ---
     database_url: str = "postgresql+asyncpg://user:password@localhost:5432/resqshield"
     database_url_sync: str = "postgresql+psycopg2://user:password@localhost:5432/resqshield"

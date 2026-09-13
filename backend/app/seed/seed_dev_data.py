@@ -53,7 +53,7 @@ def seed_dev_data(session: Session) -> dict[str, int]:
         user = User(
             email=DEV_USER_EMAIL,
             full_name="Development Test Operator",
-            role_name="operator",
+            role_name="field_responder",
             is_active=True,
             created_at=now,
         )
