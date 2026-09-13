@@ -1,9 +1,9 @@
-﻿"""Acceptance checks for T66 EWS claim separation documentation."""
+"""Acceptance checks for T66 EWS claim separation documentation."""
 
 from pathlib import Path
 
 
-DOC = Path("docs/m5/day2/T66_EW4ALL_CLAIM_SEPARATION.md")
+DOC = Path("docs/m5/day2/T66/T66_EW4ALL_CLAIM_SEPARATION.md")
 
 
 def _text() -> str:

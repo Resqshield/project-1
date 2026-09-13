@@ -3,7 +3,7 @@
 from pathlib import Path
 
 
-DOC = Path("docs/m5/day2/T50_EXISTING_LEWS_COMPARISON.md")
+DOC = Path("docs/m5/day2/T50/T50_EXISTING_LEWS_COMPARISON.md")
 
 
 def _text() -> str:
