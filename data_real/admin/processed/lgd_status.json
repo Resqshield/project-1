@@ -1,0 +1,20 @@
+{
+  "status": "MANUAL_REQUIRED",
+  "reason": "Neither data.gov.in open API nor manual files found",
+  "options": [
+    {
+      "label": "Option A \u2014 LGD portal (login required for bulk)",
+      "url": "https://lgdirectory.gov.in/",
+      "instructions": "Reports \u2192 Download \u2192 Village with Panchayat \u2192 CSV",
+      "place_at": "C:\\flood_prediction_this_copy\\flood_prediction_this\\data_real\\admin\\raw\\lgd_national_villages.csv"
+    },
+    {
+      "label": "Option B \u2014 data.gov.in snapshot (no login)",
+      "url": "https://data.gov.in/resource/all-villages-lgd",
+      "instructions": "Download CSV \u2192 place at lgd_national_villages.csv",
+      "place_at": "C:\\flood_prediction_this_copy\\flood_prediction_this\\data_real\\admin\\raw\\lgd_national_villages.csv"
+    }
+  ],
+  "expected_columns": "StateLGDCode, StateName, DistrictLGDCode, DistrictName, SubDistrictLGDCode, SubDistrictName, BlockLGDCode, BlockName, GPLGDCode, GPName, VillageLGDCode, VillageName, Status",
+  "timestamp": "2026-09-15T18:44:14.124840+00:00"
+}

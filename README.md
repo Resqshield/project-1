@@ -273,9 +273,9 @@ evacuation decisions, or policy-making.**
 
 ---
 
-## Future Work
+## Future Work (Synthetic MVP)
 
-The following are planned future enhancements **not currently implemented**:
+The following MVP enhancements are planned:
 
 | Enhancement | Description |
 |---|---|
@@ -289,3 +289,51 @@ The following are planned future enhancements **not currently implemented**:
 | Evacuation routing | Nearest shelter / route planning |
 | Model validation | Against actual historical disaster records |
 | Production deployment | Cloud hosting with CI/CD |
+
+---
+
+## Real Data v1 Development: in progress
+
+> **Branch**: `real-data-v1`
+> **Status**: Phase 1 complete — Administrative / Geospatial Foundation
+> **The synthetic MVP remains fully functional on branch `static_data_map`.**
+
+### What Real Data Phase 1 delivers
+
+A complete geospatial infrastructure foundation in `data_real/` and `real_pipeline/`:
+
+| Component | Status |
+|---|---|
+| LGD admin hierarchy ingest (State→District→Sub-dist→Block→GP→Village) | Pipeline ready; LGD data MANUAL_REQUIRED |
+| Boundary ingest (GADM, Datameet, Survey of India) | Pipeline ready; GADM download MANUAL_REQUIRED |
+| Admin crosswalk (LGD ↔ Census 2011 ↔ GADM) | ✅ State crosswalk (38 entries) built |
+| Admin validation suite (codes, dupes, hierarchy, coords) | ✅ 43 tests passing |
+| Village search prototype (Raini → code + parents) | ✅ Implemented and tested |
+| Terrain pilot: Copernicus GLO-30 DEM (public, no auth) | ✅ N29E078 (42.5 MB) downloaded |
+| Real terrain derivatives (elevation, slope, aspect) | ✅ From real DEM: 197m–2693m, 7.5° mean slope |
+| Training strategy (static/dynamic, LORO validation, PR-AUC metrics) | ✅ Documented |
+| Observation confidence schema | ✅ Designed (null ≠ zero risk) |
+| Data sources documentation | ✅ 15+ sources documented |
+| Download manifest | ✅ All datasets tracked with status |
+| REAL_DATA_GAP.md (accurate gap framing) | ✅ India ecosystem accurately described |
+| No real ML models trained | ✅ Confirmed — Phase 2+ only |
+| No synthetic data in data_real/ | ✅ Confirmed — fully separated |
+
+### Recommended Next Steps (Phase 2)
+
+1. **Manually download LGD data** from https://lgdirectory.gov.in/ or https://data.gov.in/resource/all-villages-lgd
+2. **Download GADM GeoPackage** (~220 MB) from https://gadm.org/download_country.html
+3. **Complete Uttarakhand terrain** — download remaining 8 tiles (N29–N31, E78–E80)
+4. **Download HydroBASINS** for catchment delineation
+5. **Ingest IMD or IMERG** rainfall for historical event windows
+6. **Start historical event labelling** using ISRO Bhuvan + NDMA records
+
+### Map Scaling Recommendation (Leaflet vs MapLibre)
+
+For 292 synthetic markers: **Leaflet is adequate**.
+For 600,000+ village features (nationwide):
+- **MapLibre GL JS + PMTiles/Vector tiles** is strongly recommended.
+- Leaflet cannot render 600k markers without significant clustering or decimation.
+- Proposed zoom hierarchy: zoom 4–6 = state/district aggregates; zoom 7–9 = district/subdistrict; zoom 10–11 = village clusters/boundaries; zoom 12+ = individual village features.
+- Current `RiskMap.jsx` is preserved unchanged. MapLibre migration is a future phase task.
+

@@ -1,0 +1,13 @@
+{
+  "timestamp": "2026-09-15T18:43:59.970110+00:00",
+  "state_crosswalk_rows": 38,
+  "district_crosswalk_rows": 0,
+  "has_gadm": false,
+  "has_lgd": false,
+  "notes": [
+    "State crosswalk is curated from official Census2011 + LGD documentation.",
+    "District crosswalk uses name-matching \u2014 verify unmatched rows manually.",
+    "GADM codes are for research use only; LGD codes are canonical for GoI systems.",
+    "Same district name can appear in multiple states \u2014 always use state+district together."
+  ]
+}

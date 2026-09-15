@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-09-15T18:47:03.995547+00:00",
+  "pilot": "uttarakhand",
+  "pilot_name": "Uttarakhand",
+  "data_type": "REAL DEM \u2014 NOT SYNTHETIC",
+  "source": "Copernicus GLO-30 (public)",
+  "tiles_downloaded": [
+    "N29E078"
+  ],
+  "tiles_failed": [],
+  "derivative_results": {
+    "N29E078_glo30.tif": {
+      "error": "rasterio not available"
+    }
+  }
+}
