@@ -1,0 +1,25 @@
+{
+  "model_type": "RandomForestClassifier",
+  "features": [
+    "rainfall",
+    "river_level",
+    "soil_moisture",
+    "elevation",
+    "flood_history"
+  ],
+  "target": "flood_risk",
+  "classes": [
+    "High",
+    "Low",
+    "Medium"
+  ],
+  "n_estimators": 200,
+  "random_state": 42,
+  "class_weight": "balanced",
+  "n_train_samples": 233,
+  "n_test_samples": 59,
+  "synthetic_validation_accuracy": 0.8475,
+  "data_type": "synthetic_demo",
+  "river_level_note": "river_level is a SYNTHETIC NORMALIZED INDEX (0-10), not real gauge metres.",
+  "disclaimer": "The current model is trained on synthetic labels generated from environmental features. Evaluation metrics verify the ML pipeline is functioning; they do not represent validated real-world disaster forecasting performance."
+}

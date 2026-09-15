@@ -1,0 +1,31 @@
+{
+  "model_type": "RandomForestClassifier",
+  "features": [
+    "rainfall",
+    "soil_moisture",
+    "slope",
+    "elevation",
+    "landslide_history"
+  ],
+  "target": "landslide_risk",
+  "classes": [
+    "High",
+    "Low",
+    "Medium"
+  ],
+  "n_estimators": 200,
+  "random_state": 42,
+  "class_weight": "balanced",
+  "n_train_samples": 233,
+  "n_test_samples": 59,
+  "synthetic_validation_accuracy": 0.8814,
+  "data_type": "synthetic_demo",
+  "feature_notes": {
+    "slope": "Synthetic slope in degrees (0-45); key landslide driver",
+    "elevation": "Metres above sea level",
+    "soil_moisture": "Synthetic ratio 0-1",
+    "rainfall": "Synthetic monthly rainfall mm",
+    "landslide_history": "Binary 0/1 historical occurrence"
+  },
+  "disclaimer": "The current landslide model is trained on synthetic labels generated from environmental features. Evaluation metrics verify that the ML pipeline is functioning; they do not represent validated real-world landslide forecasting performance."
+}
