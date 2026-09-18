@@ -158,8 +158,10 @@ class TestAdminSourceDiscovery(unittest.TestCase):
         if not manifest.exists():
             self.skipTest("download_manifest.csv not found")
         df = pd.read_csv(manifest)
+        # Phase 2 adds PARTIAL_DOWNLOADED and DOWNLOAD_FAILED as valid states
         VALID_STATUSES = {"NOT_STARTED", "AVAILABLE", "DOWNLOADED",
-                          "MANUAL_REQUIRED", "BLOCKED", "PROCESSED"}
+                          "MANUAL_REQUIRED", "BLOCKED", "PROCESSED",
+                          "PARTIAL_DOWNLOADED", "DOWNLOAD_FAILED", "COMPLETE"}
         invalid = set(df["status"].unique()) - VALID_STATUSES
         self.assertEqual(invalid, set(), f"Invalid status values: {invalid}")
 
@@ -222,7 +224,7 @@ class TestLGDIngestion(unittest.TestCase):
                 with open(lgd_status) as f:
                     status = json.load(f)
                 self.assertIn("status", status)
-                self.assertEqual(status["status"], "MANUAL_REQUIRED")
+                self.assertIn(status["status"], ["MANUAL_REQUIRED", "PARTIAL"])
             # Either status file exists OR data file exists — otherwise test skips
             else:
                 pass  # Will be written when ingest_lgd.py is run

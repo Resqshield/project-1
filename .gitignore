@@ -52,3 +52,21 @@ desktop.ini
 # ── Logs ──────────────────────────────────────────────────────
 *.log
 logs/
+
+# ── ResQ Shield real research datasets ───────────────────────
+data_real/**/*.parquet
+data_real/**/*.tif
+data_real/**/*.csv
+data_real/**/*.geojson
+data_real/**/*.json
+data_real/admin/raw/
+data_real/terrain/raw/
+models_real/
+
+# ── Local/debug artifacts ─────────────────────────────────────
+temp_api.json
+append_route.py
+compute_stats.py
+test_evacuation_endpoint.py
+test_mandi.py
+test_overpass.py

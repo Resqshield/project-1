@@ -1,0 +1,312 @@
+/* frontend/src/realmap/RealAdminMap.css */
+
+.real-admin-map-wrapper {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: #0f172a;
+  color: #e2e8f0;
+  font-family: "Inter", "Segoe UI", system-ui, sans-serif;
+}
+
+/* ── Experimental banner ──────────────────────────────────────────────── */
+.experimental-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: linear-gradient(135deg, #1e1b4b 0%, #0f172a 100%);
+  border-bottom: 1px solid rgba(139, 92, 246, 0.3);
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background: rgba(139, 92, 246, 0.2);
+  border: 1px solid rgba(139, 92, 246, 0.5);
+  border-radius: 20px;
+  color: #a78bfa;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+}
+
+.banner-text {
+  color: #64748b;
+}
+
+/* ── Layout ───────────────────────────────────────────────────────────── */
+.map-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Sidebar ──────────────────────────────────────────────────────────── */
+.map-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: #0f1629;
+  border-right: 1px solid rgba(51, 65, 85, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+  z-index: 20;
+  gap: 0;
+}
+
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(51,65,85,0.4);
+}
+
+.sidebar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin-bottom: 4px;
+}
+
+.sidebar-title svg {
+  color: #3b82f6;
+}
+
+.sidebar-subtitle {
+  font-size: 11px;
+  color: #475569;
+}
+
+/* ── Stats ────────────────────────────────────────────────────────────── */
+.sidebar-stats {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(51,65,85,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.stat-label { color: #64748b; }
+.stat-value { color: #94a3b8; font-weight: 500; font-variant-numeric: tabular-nums; }
+.stat-value.manual-req { color: #f59e0b; font-size: 10px; font-weight: 600; }
+
+/* ── Zoom indicator ───────────────────────────────────────────────────── */
+.zoom-indicator {
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(51,65,85,0.4);
+}
+
+.zoom-level {
+  font-size: 11px;
+  color: #475569;
+  margin-bottom: 2px;
+}
+
+.zoom-layer-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #60a5fa;
+  margin-bottom: 8px;
+}
+
+.zoom-bar {
+  display: flex;
+  gap: 3px;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.zoom-segment {
+  flex: 1;
+  background: rgba(51,65,85,0.5);
+  border-radius: 2px;
+  transition: background 0.3s;
+}
+
+.zoom-segment.active {
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+/* ── Layer status ─────────────────────────────────────────────────────── */
+.layer-status {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(51,65,85,0.4);
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.layer-status-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.loaded { background: #22c55e; }
+.status-dot.failed { background: #ef4444; }
+.status-dot.loading { background: #f59e0b; animation: pulse 1s infinite; }
+
+@keyframes pulse { 50% { opacity: 0.4; } }
+
+.layer-name { color: #64748b; flex: 1; font-family: monospace; font-size: 10px; }
+.layer-status-text { color: #475569; font-size: 10px; }
+.layer-status-text.loaded { color: #22c55e; }
+.layer-status-text.failed { color: #ef4444; }
+
+/* ── Data provenance ──────────────────────────────────────────────────── */
+.data-provenance {
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(51,65,85,0.4);
+}
+
+.prov-title {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #475569;
+  margin-bottom: 6px;
+}
+
+.prov-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 2px 0;
+}
+
+.prov-label { color: #475569; }
+.prov-value { color: #64748b; }
+.prov-value.manual { color: #f59e0b; }
+
+/* ── Map container ────────────────────────────────────────────────────── */
+.map-container-wrapper {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.maplibre-container {
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Loading overlay ──────────────────────────────────────────────────── */
+.map-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 23, 42, 0.8);
+  gap: 12px;
+  font-size: 13px;
+  color: #64748b;
+  z-index: 10;
+}
+
+.map-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 2px solid rgba(59,130,246,0.2);
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Hover tooltip ────────────────────────────────────────────────────── */
+.map-tooltip {
+  position: absolute;
+  bottom: 36px;
+  left: 12px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(51,65,85,0.6);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+  backdrop-filter: blur(8px);
+  pointer-events: none;
+  z-index: 5;
+  min-width: 160px;
+}
+
+.tooltip-row {
+  display: flex;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.t-label { color: #475569; width: 60px; flex-shrink: 0; }
+.t-value { color: #e2e8f0; font-weight: 500; }
+
+/* ── Map error ────────────────────────────────────────────────────────── */
+.map-error {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  background: rgba(127, 29, 29, 0.9);
+  border: 1px solid rgba(239,68,68,0.4);
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  color: #fca5a5;
+  z-index: 5;
+}
+
+/* ── MapLibre overrides ───────────────────────────────────────────────── */
+.maplibre-ctrl-attrib {
+  background: rgba(15,23,42,0.8) !important;
+  color: #475569 !important;
+  font-size: 10px !important;
+}
+
+.maplibregl-ctrl-group {
+  background: rgba(15, 23, 42, 0.9) !important;
+  border: 1px solid rgba(51,65,85,0.5) !important;
+  border-radius: 8px !important;
+  overflow: hidden;
+}
+
+.maplibregl-ctrl-group button {
+  background: transparent !important;
+  color: #94a3b8 !important;
+}
+
+.maplibregl-ctrl-group button:hover {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #60a5fa !important;
+}
+
+.maplibregl-ctrl-scale {
+  background: rgba(15,23,42,0.8) !important;
+  border-color: rgba(51,65,85,0.5) !important;
+  color: #475569 !important;
+  font-size: 10px !important;
+}

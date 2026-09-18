@@ -22,6 +22,20 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+# ── Shadow research API (real data, experimental) ─────────────────────────────
+try:
+    from backend.routes.real_research import router as real_research_router
+    _REAL_RESEARCH_AVAILABLE = True
+except ImportError:
+    _REAL_RESEARCH_AVAILABLE = False
+
+try:
+    from backend.routes.real_flood_predict import router as real_flood_router
+    _REAL_FLOOD_AVAILABLE = True
+except ImportError:
+    _REAL_FLOOD_AVAILABLE = False
+
+
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 log = logging.getLogger("resqshield")
@@ -201,9 +215,21 @@ app.add_middleware(
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
+
+# Register shadow research API (experimental, separate namespace)
+# Does NOT touch /api/locations or any synthetic MVP routes
+if _REAL_RESEARCH_AVAILABLE:
+    app.include_router(real_research_router)
+    log.info("Shadow research API registered at /api/real/ [EXPERIMENTAL, not_operational]")
+
+# Register real flood inference (POST /api/real/flood/predict etc.)
+if _REAL_FLOOD_AVAILABLE:
+    app.include_router(real_flood_router)
+    log.info("Real flood inference registered at /api/real/flood/ [EXPERIMENTAL_BASELINE_ONLY]")
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _validate_risk(value: Optional[str], param_name: str) -> Optional[str]:
