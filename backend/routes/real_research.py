@@ -312,6 +312,76 @@ def _load_admin_search_index():
     return unique
 
 
+
+@router.get("/infrastructure/evacuation/summary", summary="Evacuation Features Summary")
+async def evacuation_summary():
+    path = Path(__file__).parent.parent.parent / "data_real" / "infrastructure" / "processed" / "evacuation_points.geojson"
+    if not path.exists():
+        return {"hospitals": 0, "shelters": 0, "total": 0}
+    try:
+        import json
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            features = data.get("features", [])
+            hospitals = sum(1 for f in features if f.get("properties", {}).get("amenity") in ("hospital", "clinic"))
+            shelters = sum(1 for f in features if f.get("properties", {}).get("amenity") == "shelter")
+            return {"hospitals": hospitals, "shelters": shelters, "total": len(features)}
+    except Exception as e:
+        return {"error": str(e)}
+
+
+@router.get("/infrastructure/evacuation/nearest", summary="Nearest OSM Facility")
+async def evacuation_nearest(lat: float, lon: float, radius_km: float = 20.0):
+    import json
+    import math
+    from pathlib import Path
+
+    path = Path(__file__).parent.parent.parent / "data_real" / "infrastructure" / "processed" / "evacuation_points.geojson"
+    if not path.exists():
+        return {"error": "Dataset missing"}
+
+    def haversine(lat1, lon1, lat2, lon2):
+        R = 6371.0
+        dlat = math.radians(lat2 - lat1)
+        dlon = math.radians(lon2 - lon1)
+        a = math.sin(dlat / 2)**2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2)**2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+        return R * c
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            features = data.get("features", [])
+            
+            nearby = []
+            for feat in features:
+                coords = feat.get("geometry", {}).get("coordinates", [])
+                if len(coords) == 2:
+                    f_lon, f_lat = coords
+                    dist = haversine(lat, lon, f_lat, f_lon)
+                    if dist <= radius_km:
+                        feat["properties"]["_distance_km"] = dist
+                        nearby.append(feat)
+
+            if not nearby:
+                return {"error": "No facilities found"}
+
+            shelters = [f for f in nearby if f.get("properties", {}).get("amenity") == "shelter"]
+            hospitals = [f for f in nearby if f.get("properties", {}).get("amenity") in ("hospital", "clinic")]
+
+            # Prefer shelter
+            if shelters:
+                shelters.sort(key=lambda x: x["properties"]["_distance_km"])
+                return shelters[0]
+            if hospitals:
+                hospitals.sort(key=lambda x: x["properties"]["_distance_km"])
+                return hospitals[0]
+            
+            nearby.sort(key=lambda x: x["properties"]["_distance_km"])
+            return nearby[0]
+    except Exception as e:
+        return {"error": str(e)}
+
 @router.get("/infrastructure/evacuation", summary="GeoJSON of Hospitals and Shelters (Evacuation Context)")
 async def evacuation_geojson():
     """Serves the verified OSM hospital, clinic, and shelter points."""

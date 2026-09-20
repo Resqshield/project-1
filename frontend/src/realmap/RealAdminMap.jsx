@@ -22,6 +22,7 @@ import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import AdminSearchBar from "./AdminSearchBar.jsx";
 import AdminInfoPanel from "./AdminInfoPanel.jsx";
+import SimulationPanel from "./SimulationPanel.jsx";
 import EvacuationRoutingPanel from "./EvacuationRoutingPanel.jsx";
 import "./RealAdminMap.css";
 
@@ -64,15 +65,319 @@ export default function RealAdminMap() {
   const [routeDest, setRouteDest] = useState(null);
   const [routeData, setRouteData] = useState(null);
 
+  const [simulationState, setSimulationState] = useState("IDLE"); // IDLE, LOADING, ACTIVE, PARTIAL, ERROR
+  const [simulationVillages, setSimulationVillages] = useState([]);
+  const [originVillage, setOriginVillage] = useState(null);
+  const [bridgeStatus, setBridgeStatus] = useState("WAITING");
+  const [cloudburstAlert, setCloudburstAlert] = useState(null);
+
+
+const HIMAL_EWS_DEMO_VILLAGES = [
+  {
+    name: "Kataula",
+    district: "Mandi",
+    state: "Himachal Pradesh",
+    lat: 31.79778,
+    lon: 77.01840,
+    coordinateSource: "OpenStreetMap-backed public map reference",
+    dataRole: "SIMULATION_LOCATION_ONLY",
+    coordinateStatus: "VERIFIED"
+  },
+  {
+    name: "Kamand",
+    district: "Mandi",
+    state: "Himachal Pradesh",
+    lat: 31.78172,
+    lon: 76.99736,
+    coordinateSource: "OpenStreetMap-backed public map reference",
+    dataRole: "SIMULATION_LOCATION_ONLY",
+    coordinateStatus: "VERIFIED"
+  },
+  {
+    name: "Amehar",
+    district: "Mandi",
+    state: "Himachal Pradesh",
+    lat: null,
+    lon: null,
+    coordinateSource: "Unknown",
+    dataRole: "SIMULATION_LOCATION_ONLY",
+    coordinateStatus: "NEEDS_VERIFICATION"
+  }
+];
+
+  const requestEvacuationRoute = useCallback(async (origin, facility) => {
+    const [destLon, destLat] = facility.geometry.coordinates;
+
+    const routeUrl =
+      `/api/real/evacuation/route` +
+      `?start_lat=${origin.lat}` +
+      `&start_lon=${origin.lon}` +
+      `&dest_lat=${destLat}` +
+      `&dest_lon=${destLon}`;
+
+    console.log("[EVAC] OSRM request", routeUrl);
+
+    const response = await fetch(routeUrl);
+
+    console.log("[EVAC] OSRM HTTP", response.status);
+
+    const route = await response.json();
+
+    console.log("[EVAC] OSRM response", route);
+
+    if (!response.ok || route.error) {
+      throw new Error(route.error || `HTTP ${response.status}`);
+    }
+
+    if (route.type !== "Feature" || route.geometry?.type !== "LineString") {
+      throw new Error("Invalid OSRM route geometry");
+    }
+
+    return route;
+  }, []);
+
+  const drawEvacuationRoute = useCallback((route) => {
+    const map = mapRef.current;
+
+    if (!map) {
+      console.error("[EVAC] map missing");
+      return;
+    }
+
+    const src = map.getSource("src-evacuation-route");
+
+    console.log("[EVAC] route source", src);
+
+    if (!src) {
+      console.error("[EVAC] src-evacuation-route missing");
+      return;
+    }
+
+    src.setData(route);
+
+    console.log("[EVAC] setData completed", route.geometry.coordinates.length);
+
+    if (map.getLayer("evacuation-route-casing")) {
+      console.log("[EVAC] casing layer", map.getLayer("evacuation-route-casing"));
+      console.log("[EVAC] casing vis", map.getLayoutProperty("evacuation-route-casing", "visibility"));
+      map.moveLayer("evacuation-route-casing");
+    }
+    
+    if (map.getLayer("evacuation-route")) {
+      console.log("[EVAC] route layer", map.getLayer("evacuation-route"));
+      console.log("[EVAC] route vis", map.getLayoutProperty("evacuation-route", "visibility"));
+      map.moveLayer("evacuation-route");
+    }
+
+    const coords = route.geometry.coordinates;
+    const bounds = coords.reduce(
+      (b, coord) => b.extend(coord),
+      new maplibregl.LngLatBounds(coords[0], coords[0])
+    );
+
+    map.fitBounds(bounds, {
+      padding: {
+        top: 100,
+        bottom: 120,
+        left: 340,
+        right: 80
+      },
+      duration: 1000
+    });
+  }, []);
+
+  const activateCloudburstDemo = useCallback(async (payload = null) => {
+    console.log("[HIMAL] trigger", payload);
+    setSimulationState("LOADING");
+    setSimulationVillages([]);
+    setOriginVillage(null);
+    if (payload) {
+      setBridgeStatus("EVENT RECEIVED");
+      setCloudburstAlert({
+         village: payload.village,
+         timestamp: payload.timestamp || new Date().toISOString()
+      });
+    }
+
+    const results = [];
+    
+    for (const demoV of HIMAL_EWS_DEMO_VILLAGES) {
+      if (demoV.coordinateStatus === "VERIFIED" && demoV.lat && demoV.lon) {
+        results.push(demoV);
+      }
+      
+      // Optional LGD enrichment (does not block showing the marker)
+      try {
+        const res = await fetch(`/api/real/search?q=${demoV.name}&limit=25`);
+        const data = await res.json();
+        const match = data.results?.find(r => r.district?.toLowerCase() === "mandi" && r.state?.toLowerCase() === "himachal pradesh");
+        if (match) {
+           const existing = results.find(r => r.name === demoV.name);
+           if (existing) {
+             existing.lgdCode = match.code;
+           } else if (match.lat && match.lon) {
+             results.push({ ...demoV, lat: match.lat, lon: match.lon, coordinateStatus: "VERIFIED_VIA_LGD" });
+           }
+        }
+      } catch (e) {
+        console.warn("Failed to fetch optional LGD for", demoV.name, e);
+      }
+    }
+    
+    setSimulationVillages(results);
+    
+    let targetVillage = null;
+    if (payload && payload.village) {
+      targetVillage = results.find(r => r.name.toLowerCase() === payload.village.toLowerCase());
+    } else {
+      targetVillage = results.find(r => r.name.toLowerCase() === "kataula");
+    }
+    
+    if (targetVillage) {
+      console.log("[EVAC] origin", targetVillage);
+      setOriginVillage(targetVillage);
+    }
+    
+    const verifiedCount = results.length;
+    if (verifiedCount === 3) {
+      setSimulationState("ACTIVE");
+    } else if (verifiedCount > 0) {
+      setSimulationState("PARTIAL");
+    } else {
+      setSimulationState("ERROR");
+    }
+    
+    if (verifiedCount > 0 && mapRef.current) {
+      // Only fit to region if we aren't about to route
+      if (!targetVillage || !targetVillage.lat || !targetVillage.lon) {
+        const minLat = Math.min(...results.map(r => r.lat));
+        const maxLat = Math.max(...results.map(r => r.lat));
+        const minLon = Math.min(...results.map(r => r.lon));
+        const maxLon = Math.max(...results.map(r => r.lon));
+        mapRef.current.fitBounds([[minLon - 0.1, minLat - 0.1], [maxLon + 0.1, maxLat + 0.1]], { padding: 40, duration: 1000 });
+      }
+      
+      // Auto-route if we have a target with coordinates
+      if (targetVillage && targetVillage.lat && targetVillage.lon) {
+         try {
+           const nearestUrl = `/api/real/infrastructure/evacuation/nearest?lat=${targetVillage.lat}&lon=${targetVillage.lon}&radius_km=20`;
+           console.log("[EVAC] nearest request", nearestUrl);
+           const nearestRes = await fetch(nearestUrl);
+           const facility = await nearestRes.json();
+           console.log("[EVAC] nearest result", facility);
+           
+           if (!facility.error && facility.geometry && facility.geometry.coordinates) {
+             const destLon = facility.geometry.coordinates[0];
+             const destLat = facility.geometry.coordinates[1];
+             
+             // Wrap for UI
+             const mappedDest = { 
+               properties: facility.properties, 
+               lngLat: { lng: destLon, lat: destLat }, 
+               layerId: facility.properties.amenity === "shelter" ? "evacuation-shelters" : "evacuation-hospitals"
+             };
+             
+             setRouteDest(mappedDest);
+             
+             const route = await requestEvacuationRoute(targetVillage, facility);
+             setRouteData(route);
+             console.log("[EVAC UI]", { originVillage: targetVillage, routeDest: mappedDest, routeData: route });
+             drawEvacuationRoute(route);
+           }
+         } catch (err) {
+           console.warn("Auto route failed:", err);
+         }
+      }
+    } else if (mapRef.current) {
+      fetch(`/api/real/search?q=Mandi&limit=5`)
+        .then(r => r.json())
+        .then(data => {
+           const m = data.results?.find(r => r.type === "district");
+           if (m && m.lat && m.lon) {
+             mapRef.current.flyTo({ center: [m.lon, m.lat], zoom: 9, duration: 1000 });
+           }
+        });
+    }
+  }, []);
+
+  const handleMirrorCloudburst = useCallback(() => {
+    activateCloudburstDemo(null);
+  }, [activateCloudburstDemo]);
+
+  const handleResetSimulation = useCallback(() => {
+    setSimulationState("IDLE");
+    setSimulationVillages([]);
+    setOriginVillage(null);
+    setCloudburstAlert(null);
+    if (bridgeStatus === "EVENT RECEIVED") {
+       setBridgeStatus("CONNECTED");
+    }
+    if (mapRef.current) {
+       mapRef.current.getSource("src-simulation")?.setData({ type: "FeatureCollection", features: [] });
+       mapRef.current.getSource("src-evacuation-route")?.setData({ type: "FeatureCollection", features: [] });
+    }
+    setRouteDest(null);
+    setRouteData(null);
+  }, [bridgeStatus]);
+
   useEffect(() => {
-    fetch("/api/real/infrastructure/evacuation")
+    const handleHimalEvent = (event) => {
+      if (event.origin !== "https://himal-ews-v5.vercel.app" && event.origin !== window.location.origin) {
+        return;
+      }
+      const payload = event.data;
+      if (payload?.source === "HIMAL_EWS_DEV_TEST" || payload?.source === "HIMAL_EWS") {
+        if (payload.type === "CLOUDBURST") {
+          activateCloudburstDemo(payload);
+        } else if (payload.type === "BRIDGE_INIT") {
+          setBridgeStatus("CONNECTED");
+        }
+      }
+    };
+    window.addEventListener("message", handleHimalEvent);
+    
+    // Dev test function
+    if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+      window.__resqTestCloudburst = (village = "Kataula") => {
+         window.postMessage({
+            source: "HIMAL_EWS_DEV_TEST",
+            type: "CLOUDBURST",
+            village
+         }, window.location.origin);
+      };
+    }
+    
+    return () => {
+      window.removeEventListener("message", handleHimalEvent);
+    };
+  }, [activateCloudburstDemo]);
+
+  useEffect(() => {
+    if (!mapRef.current || !mapReady) return;
+    const map = mapRef.current;
+    if (map.getSource("src-simulation")) {
+      if (simulationState === "ACTIVE" || simulationState === "PARTIAL") {
+        const features = simulationVillages.map(v => ({
+          type: "Feature",
+          geometry: { type: "Point", coordinates: [v.lon, v.lat] },
+          properties: { name: v.name }
+        }));
+        map.getSource("src-simulation").setData({ type: "FeatureCollection", features });
+      } else {
+        map.getSource("src-simulation").setData({ type: "FeatureCollection", features: [] });
+      }
+    }
+  }, [simulationState, simulationVillages, mapReady]);
+
+  useEffect(() => {
+    fetch("/api/real/infrastructure/evacuation/summary")
       .then(r => r.json())
       .then(data => {
         setFeatureCounts(prev => ({
           ...prev,
-          evacuation: data.features?.length || 0,
-          hospitals: data.features?.filter(f => f.properties?.amenity === "hospital" || f.properties?.amenity === "clinic").length || 0,
-          shelters: data.features?.filter(f => f.properties?.amenity === "shelter").length || 0
+          evacuation: data.total || 0,
+          hospitals: data.hospitals || 0,
+          shelters: data.shelters || 0
         }));
       })
       .catch(console.warn);
@@ -159,9 +464,12 @@ export default function RealAdminMap() {
 
     map.on("zoom", () => setZoom(Math.round(map.getZoom() * 10) / 10));
     map.on("error", (e) => {
-      if (!e.error?.message?.includes("geojson")) {
-        console.warn("MapLibre error:", e);
-      }
+      const err = e?.error;
+      console.error("[MAPLIBRE ERROR MESSAGE]", err?.message);
+      console.error("[MAPLIBRE ERROR STATUS]", err?.status);
+      console.error("[MAPLIBRE ERROR URL]", err?.url);
+      console.error("[MAPLIBRE ERROR STACK]", err?.stack);
+      console.error("[MAPLIBRE ERROR RAW]", err);
     });
 
     mapRef.current = map;
@@ -176,13 +484,13 @@ export default function RealAdminMap() {
   const loadAllSources = async (map) => {
     // Initialize all static sources as empty first
     Object.keys(LAYERS).forEach(key => {
-      map.addSource(`src-${key}`, { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+      map.addSource(`src-${key}`, { type: "geojson", generateId: true, data: { type: "FeatureCollection", features: [] } });
     });
     
     // Add empty dynamic sources
-    map.addSource("src-villages", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-    map.addSource("src-streams", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
-    map.addSource("src-catchments", { type: "geojson", data: { type: "FeatureCollection", features: [] } });
+    map.addSource("src-villages", { type: "geojson", generateId: true, data: { type: "FeatureCollection", features: [] } });
+    map.addSource("src-streams", { type: "geojson", generateId: true, data: { type: "FeatureCollection", features: [] } });
+    map.addSource("src-catchments", { type: "geojson", generateId: true, data: { type: "FeatureCollection", features: [] } });
 
     // Load states synchronously (blocks map rendering)
     console.time("load-states");
@@ -258,7 +566,6 @@ export default function RealAdminMap() {
       layout: {
         "text-field": ["get", "state_name"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 4, 9, 6, 12],
-        "text-font": ["Open Sans Bold"],
         "text-max-width": 8,
         "text-letter-spacing": 0.04,
       },
@@ -315,7 +622,6 @@ export default function RealAdminMap() {
       layout: {
         "text-field": ["get", "district_name"],
         "text-size": ["interpolate", ["linear"], ["zoom"], 7, 9, 10, 12],
-        "text-font": ["Open Sans Regular"],
         "text-max-width": 8,
       },
       paint: {
@@ -462,21 +768,59 @@ export default function RealAdminMap() {
     });
 
     // Add Evacuation Route layer
-    map.addSource("src-evacuation-route", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: [] }
-    });
-    map.addLayer({
-      id: "evacuation-route",
-      type: "line",
-      source: "src-evacuation-route",
-      paint: {
-        "line-color": "#3b82f6",
-        "line-width": 4,
-        "line-dasharray": [2, 2],
-        "line-opacity": 0.8
-      }
-    });
+    if (!map.getSource("src-evacuation-route")) {
+      map.addSource("src-evacuation-route", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] }
+      });
+    }
+    
+    if (!map.getLayer("evacuation-route-casing")) {
+      map.addLayer({
+        id: "evacuation-route-casing",
+        type: "line",
+        source: "src-evacuation-route",
+        paint: {
+          "line-width": 12,
+          "line-color": "#ffffff",
+          "line-opacity": 1
+        }
+      });
+    }
+
+    if (!map.getLayer("evacuation-route")) {
+      map.addLayer({
+        id: "evacuation-route",
+        type: "line",
+        source: "src-evacuation-route",
+        paint: {
+          "line-width": 7,
+          "line-color": "#0066ff",
+          "line-opacity": 1
+        }
+      });
+    }
+
+    // ── Simulation ─────────────────────────────────────────────────────────
+    if (!map.getSource("src-simulation")) {
+      map.addSource("src-simulation", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] }
+      });
+    }
+    if (!map.getLayer("layer-simulation")) {
+      map.addLayer({
+        id: "layer-simulation",
+        type: "circle",
+        source: "src-simulation",
+        paint: {
+          "circle-radius": 9,
+          "circle-color": "#d946ef",
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff"
+        }
+      });
+    }
 
     // ── Dynamic Villages ─────────────────────────────────────────────────────
     map.addLayer({
@@ -523,11 +867,15 @@ export default function RealAdminMap() {
     let hoveredSource = null;
 
     const clearHover = () => {
-      if (hoveredId !== null && hoveredSource) {
-        map.setFeatureState(
-          { source: hoveredSource, id: hoveredId },
-          { hover: false }
-        );
+      if (hoveredId != null && hoveredSource) {
+        try {
+          map.removeFeatureState(
+            { source: hoveredSource, id: hoveredId },
+            "hover"
+          );
+        } catch (err) {
+          console.warn("[MAP] unable to clear hover state", err);
+        }
       }
       hoveredId = null;
       hoveredSource = null;
@@ -536,11 +884,27 @@ export default function RealAdminMap() {
 
     const handleMousemove = (e, layerId, sourceId) => {
       if (!e.features?.length) return;
-      clearHover();
+      
       const feature = e.features[0];
-      hoveredId = feature.id;
+      const featureId = feature?.id;
+      
+      if (featureId == null) {
+        // If there's no feature ID, we can't hover state it in MapLibre.
+        // It might be missing generateId or promoteId on the source.
+        return;
+      }
+      
+      clearHover();
+      
+      hoveredId = featureId;
       hoveredSource = sourceId;
-      map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: true });
+      
+      try {
+        map.setFeatureState({ source: sourceId, id: hoveredId }, { hover: true });
+      } catch (err) {
+        console.warn("[MAP] unable to set hover state", err);
+      }
+      
       setHoverFeature({
         layer: layerId,
         properties: feature.properties,
@@ -644,6 +1008,29 @@ export default function RealAdminMap() {
     map.on("click", "subdistricts-fill", handleClick);
     map.on("click", "villages-fill", handleClick);
 
+    // Simulation marker popup
+    map.on("click", "layer-simulation", (e) => {
+      if (!e.features?.length) return;
+      const props = e.features[0].properties;
+      const coords = e.features[0].geometry.coordinates;
+      
+      const html = `
+        <div style="color: #0f172a; font-family: Inter, sans-serif; font-size: 12px; line-height: 1.4; padding: 4px;">
+          <div style="font-weight: bold; color: #8b5cf6; margin-bottom: 6px; font-size: 13px;">HIMAL-EWS SIMULATION</div>
+          <div><strong>Village:</strong> ${props.name}</div>
+          <div><strong>Event:</strong> Simulated cloudburst</div>
+          <div><strong>Source:</strong> Hard-coded demo location</div>
+          <div><strong>Observed hazard:</strong> NO</div>
+          <div><strong>GloFAS modified:</strong> NO</div>
+        </div>
+      `;
+      
+      new maplibregl.Popup({ closeButton: true })
+        .setLngLat(coords)
+        .setHTML(html)
+        .addTo(map);
+    });
+
     const handleEvacClick = (e) => {
       if (!e.features?.length) return;
       const f = e.features[0];
@@ -663,6 +1050,8 @@ export default function RealAdminMap() {
     map.on("mouseleave", "evacuation-hospitals", resetPointer);
     map.on("mouseenter", "evacuation-shelters", setPointer);
     map.on("mouseleave", "evacuation-shelters", resetPointer);
+    map.on("mouseenter", "layer-simulation", setPointer);
+    map.on("mouseleave", "layer-simulation", resetPointer);
 
     map.on("click", "evacuation-hospitals", handleEvacClick);
     map.on("click", "evacuation-shelters", handleEvacClick);
@@ -763,9 +1152,21 @@ export default function RealAdminMap() {
   }, []);
 
   const handleRoute = useCallback(() => {
-    if (!selectedFeature || !routeDest || !mapRef.current) return;
-    const start_lat = selectedFeature.lngLat.lat;
-    const start_lon = selectedFeature.lngLat.lng;
+    const isSimActive = simulationState === "ACTIVE" || simulationState === "PARTIAL";
+    const startObj = isSimActive ? originVillage : selectedFeature;
+    if (!startObj || !routeDest || !mapRef.current) {
+        alert("Please select an origin and a destination first.");
+        return;
+    }
+    
+    let start_lat, start_lon;
+    if (isSimActive) {
+      start_lat = startObj.lat;
+      start_lon = startObj.lon;
+    } else {
+      start_lat = startObj.lngLat.lat;
+      start_lon = startObj.lngLat.lng;
+    }
     const dest_lat = routeDest.lngLat.lat;
     const dest_lon = routeDest.lngLat.lng;
 
@@ -779,10 +1180,17 @@ export default function RealAdminMap() {
         setRouteData(data);
         if (mapRef.current.getSource("src-evacuation-route")) {
           mapRef.current.getSource("src-evacuation-route").setData(data);
+          if (data.geometry && data.geometry.coordinates) {
+             const coords = data.geometry.coordinates;
+             const bounds = coords.reduce((bounds, coord) => {
+                return bounds.extend(coord);
+             }, new maplibregl.LngLatBounds(coords[0], coords[0]));
+             mapRef.current.fitBounds(bounds, { padding: 40 });
+          }
         }
       })
       .catch(e => console.error("Routing error", e));
-  }, [selectedFeature, routeDest]);
+  }, [selectedFeature, routeDest, simulationState, originVillage]);
 
   const zoomLabel = zoom < 6 ? "States" : zoom < 9 ? "Districts" : zoom < 12 ? "Sub-districts" : "Village-level (data pending)";
 
@@ -928,7 +1336,7 @@ export default function RealAdminMap() {
           )}
           {routeDest && (
             <EvacuationRoutingPanel
-              routeStart={selectedFeature}
+              routeStart={(simulationState === "ACTIVE" || simulationState === "PARTIAL") ? (originVillage ? {properties: {name: originVillage.name}, isSimulation: true} : null) : selectedFeature}
               routeDest={routeDest}
               routeData={routeData}
               onRoute={handleRoute}
@@ -966,8 +1374,82 @@ export default function RealAdminMap() {
           </div>
         </div>
 
-        {/* Map */}
+      {/* Map */}
         <div className="map-container-wrapper">
+          <SimulationPanel 
+            simulationState={simulationState}
+            simulationVillages={simulationVillages}
+            originVillage={originVillage}
+            setOriginVillage={setOriginVillage}
+            onMirrorCloudburst={handleMirrorCloudburst}
+            onResetSimulation={handleResetSimulation}
+          />
+          
+          {/* Evacuation Legend */}
+          <div style={{
+            position: "absolute", bottom: 20, right: 20, background: "rgba(15,23,42,0.9)",
+            padding: "10px", borderRadius: "8px", fontSize: "11px", color: "#e2e8f0",
+            border: "1px solid rgba(255,255,255,0.1)", backdropFilter: "blur(4px)", zIndex: 10
+          }}>
+            <div style={{ fontWeight: "bold", marginBottom: "6px", color: "#94a3b8" }}>LEGEND</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#d946ef", border: "1px solid #fff" }} />
+              <span>HIMAL-EWS Cloudburst Village</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#ef4444", border: "1px solid #fff" }} />
+              <span>OSM Hospital/Clinic</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+              <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#22c55e", border: "1px solid #fff" }} />
+              <span>OSM Shelter</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 12, height: 4, background: "#3b82f6" }} />
+              <span>OSRM Evacuation Route</span>
+            </div>
+          </div>
+
+          {/* Cloudburst Alert Banner */}
+          {cloudburstAlert && (
+            <div style={{
+              position: "absolute", top: 20, left: "50%", transform: "translateX(-50%)",
+              background: "rgba(220, 38, 38, 0.95)", color: "#fff", padding: "16px 24px",
+              borderRadius: "12px", zIndex: 50, border: "2px solid #ef4444",
+              boxShadow: "0 10px 25px -5px rgba(220, 38, 38, 0.5)",
+              textAlign: "center", backdropFilter: "blur(8px)",
+              minWidth: "300px"
+            }}>
+              <div style={{ fontSize: "16px", fontWeight: "bold", marginBottom: "8px", display: "flex", alignItems: "center", justifyContent: "center", gap: "8px" }}>
+                <span>🚨</span>
+                <span>HIMAL-EWS SIMULATION ALERT</span>
+                <span>🚨</span>
+              </div>
+              <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "4px", color: "#fca5a5" }}>
+                CLOUDBURST TRIGGERED
+              </div>
+              <div style={{ fontSize: "13px", marginBottom: "8px", color: "#fecaca" }}>
+                Mandi, Himachal Pradesh
+              </div>
+              <div style={{ fontSize: "13px", padding: "8px", background: "rgba(0,0,0,0.2)", borderRadius: "6px", marginBottom: "8px" }}>
+                <div style={{ fontWeight: "bold", marginBottom: "2px", color: "#e2e8f0" }}>
+                  {cloudburstAlert.village ? "Affected simulation village:" : "Affected demo villages:"}
+                </div>
+                <div style={{ color: "#d946ef", fontWeight: "bold" }}>
+                  {cloudburstAlert.village || "Kataula, Kamand, Amehar"}
+                </div>
+                {cloudburstAlert.village === "Amehar" && (
+                  <div style={{ color: "#fbbf24", fontSize: "11px", marginTop: "4px", fontStyle: "italic" }}>
+                    Amehar simulation triggered — location coordinate pending verification
+                  </div>
+                )}
+              </div>
+              <div style={{ fontSize: "11px", fontWeight: "bold", color: "#fca5a5", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+                SIMULATION ONLY — NOT AN OBSERVED HAZARD
+              </div>
+            </div>
+          )}
+
           <div ref={mapContainerRef} className="maplibre-container" />
           {!mapReady && (
             <div className="map-loading">
