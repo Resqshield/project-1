@@ -1,14 +1,13 @@
 /**
- * frontend/src/realmap/RealMapPage.jsx
- * ======================================
- * Wraps RealAdminMap in a full-page layout accessible
- * via /real-map route. Completely separate from synthetic MVP.
+ * frontend/src/realmap/TechnicalMapPage.jsx
+ * ============================================
+ * Wraps TechnicalMap in a full-page layout, accessible via /technical.
  */
 
-import RealAdminMap from "./RealAdminMap.jsx";
+import TechnicalMap from "./TechnicalMap.jsx";
 import DashboardNav from "./DashboardNav.jsx";
 
-export default function RealMapPage() {
+export default function TechnicalMapPage() {
   return (
     <div style={{
       position: "fixed",
@@ -18,7 +17,6 @@ export default function RealMapPage() {
       background: "#0f172a",
       fontFamily: "'Inter', 'Segoe UI', system-ui, sans-serif",
     }}>
-      {/* Top bar */}
       <div style={{
         display: "flex",
         alignItems: "center",
@@ -47,29 +45,15 @@ export default function RealMapPage() {
             <div style={{ fontSize: 14, fontWeight: 700, color: "#e2e8f0", lineHeight: 1.2 }}>
               ResQ Shield
             </div>
-            <div style={{ fontSize: 10, color: "#475569" }}>Real Admin Map — Experimental</div>
+            <div style={{ fontSize: 10, color: "#475569" }}>Technical / Admin — Data &amp; Infrastructure Health</div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <DashboardNav active="authority" />
-          <div style={{
-            display: "flex", alignItems: "center", gap: 6,
-            padding: "4px 10px",
-            background: "rgba(139,92,246,0.1)",
-            border: "1px solid rgba(139,92,246,0.3)",
-            borderRadius: 20,
-            fontSize: 11, color: "#a78bfa",
-          }}>
-            <span>⚗</span>
-            <span>Research Only</span>
-          </div>
-        </div>
+        <DashboardNav active="technical" />
       </div>
 
-      {/* Map */}
       <div style={{ flex: 1, minHeight: 0 }}>
-        <RealAdminMap />
+        <TechnicalMap />
       </div>
     </div>
   );

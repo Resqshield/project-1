@@ -1,4 +1,4 @@
-export default function EvacuationRoutingPanel({ routeStart, routeDest, routeData, onRoute, onClose }) {
+export default function EvacuationRoutingPanel({ routeStart, routeDest, routeData, routeIssue, onRoute, onClose }) {
   if (!routeDest) return null;
 
   const isSim = routeStart?.isSimulation;
@@ -29,7 +29,19 @@ export default function EvacuationRoutingPanel({ routeStart, routeDest, routeDat
 
         {routeData && (
           <div className="coverage-grid" style={{ marginTop: "12px", gridTemplateColumns: "1fr" }}>
-            <div className="cov-item">
+            <span style={{
+              alignSelf: "flex-start", padding: "2px 8px", borderRadius: 4, fontSize: 10, fontWeight: 700, letterSpacing: 0.5,
+              background: routeData.properties.rerouted ? "rgba(20,184,166,0.15)" : "rgba(255,140,0,0.15)",
+              color: routeData.properties.rerouted ? "#0d9488" : "#c2410c",
+            }}>
+              {routeData.properties.rerouted ? "ALTERNATIVE ROUTE" : "PRIMARY ROUTE"}
+            </span>
+            {routeData.properties.rerouted && (
+              <div style={{ marginTop: 6, fontSize: 11, color: "#0d9488", fontWeight: 700 }}>
+                🚫 BLOCKAGE REPORTED — ALTERNATIVE ROUTE AVAILABLE
+              </div>
+            )}
+            <div className="cov-item" style={{ marginTop: 8 }}>
               <div className="cov-label">Distance</div>
               <div className="cov-val present">{(routeData.properties.distance_m / 1000).toFixed(1)} km</div>
             </div>
@@ -53,6 +65,12 @@ export default function EvacuationRoutingPanel({ routeStart, routeDest, routeDat
                 Research/demo routing — not emergency navigation.
               </div>
             )}
+          </div>
+        )}
+
+        {!routeData && routeIssue === "NO_ROUTE" && (
+          <div style={{ marginTop: 12, padding: 8, borderRadius: 6, background: "rgba(239,68,68,0.15)", border: "1px solid #ef4444", color: "#fca5a5", fontSize: 12, fontWeight: 700 }}>
+            {isSim ? "NO SAFE ALTERNATIVE FOUND" : "ROUTING TEMPORARILY UNAVAILABLE"}
           </div>
         )}
 

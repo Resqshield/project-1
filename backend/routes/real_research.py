@@ -688,20 +688,142 @@ async def coverage_schema():
     }
 
 
-@router.get("/evacuation/route", summary="Real OSM evacuation routing")
+def _haversine_km(lat1, lon1, lat2, lon2):
+    import math
+    R = 6371.0
+    dlat = math.radians(lat2 - lat1)
+    dlon = math.radians(lon2 - lon1)
+    a = math.sin(dlat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
+    return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+def _route_min_distance_km(geometry: dict, block_lat: float, block_lon: float) -> float:
+    """Minimum distance in km from any vertex of a LineString route to a point."""
+    coords = geometry.get("coordinates", [])
+    if not coords:
+        return float("inf")
+    return min(_haversine_km(block_lat, block_lon, lat, lon) for lon, lat in coords)
+
+def _nearest_segment_bearing(coords, block_lat, block_lon):
+    """Bearing (degrees) of the route segment closest to the block point."""
+    import math
+    best_i, best_dist = 0, float("inf")
+    for i, (lon, lat) in enumerate(coords):
+        d = _haversine_km(block_lat, block_lon, lat, lon)
+        if d < best_dist:
+            best_dist, best_i = d, i
+    j = min(best_i + 1, len(coords) - 1)
+    lon1, lat1 = coords[best_i]
+    lon2, lat2 = coords[j]
+    return math.atan2(lon2 - lon1, lat2 - lat1)  # radians, arbitrary reference — only used relatively
+
+def _offset_point_km(lat, lon, bearing_rad, distance_km):
+    """Offset a lat/lon by distance_km along bearing_rad (perpendicular trick, small-distance approx)."""
+    import math
+    dlat = (distance_km / 110.574) * math.cos(bearing_rad)
+    dlon = (distance_km / (111.320 * math.cos(math.radians(lat)))) * math.sin(bearing_rad)
+    return lat + dlat, lon + dlon
+
+async def _osrm_route(client, base_url, waypoints, alternatives=False):
+    """waypoints: list of (lat, lon). Returns parsed OSRM JSON, or None on any failure
+    (bad status, timeout, no route) — callers treat None as "this candidate didn't pan out"
+    rather than aborting the whole request."""
+    coord_str = ";".join(f"{lon},{lat}" for lat, lon in waypoints)
+    url = f"{base_url}/route/v1/driving/{coord_str}?overview=full&geometries=geojson"
+    if alternatives:
+        url += "&alternatives=true"
+    try:
+        resp = await client.get(url, timeout=10.0)
+    except Exception:
+        return None
+    if resp.status_code != 200:
+        return None
+    data = resp.json()
+    if data.get("code") != "Ok" or not data.get("routes"):
+        return None
+    return data
+
+BLOCK_RADIUS_KM = 0.3
+
+@router.get("/evacuation/route", summary="Real OSM evacuation routing (blocked-road aware)")
 async def evacuation_route(start_lat: float, start_lon: float, dest_lat: float, dest_lon: float):
     import httpx, os
     base_url = os.getenv("ROUTING_BASE_URL", "http://router.project-osrm.org")
-    url = f"{base_url}/route/v1/driving/{start_lon},{start_lat};{dest_lon},{dest_lat}?overview=full&geometries=geojson"
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=10.0)
-            if resp.status_code != 200:
-                return {**RESEARCH_HEADER, "error": f"OSRM API error: {resp.status_code}", "details": resp.text}
-            data = resp.json()
-            if data.get("code") != "Ok" or not data.get("routes"):
+            data = await _osrm_route(client, base_url, [(start_lat, start_lon), (dest_lat, dest_lon)], alternatives=True)
+            if data is None:
                 return {**RESEARCH_HEADER, "error": "NoRoute", "details": "OSRM could not find a route."}
-            route = data["routes"][0]
+
+            candidates = data["routes"]
+            route = candidates[0]
+            rerouted = False
+            block_acknowledged = False
+            reroute_method = None
+            avoided_labels = []
+
+            # Reroute around any actively-reported road blocks (shared demo state).
+            from backend.demo_state import road_blocks as blocked_roads
+            if blocked_roads:
+                default_min_dist = min(
+                    _route_min_distance_km(route["geometry"], b["lat"], b["lon"])
+                    for b in blocked_roads.values()
+                )
+                if default_min_dist < BLOCK_RADIUS_KM:
+                    block_acknowledged = True
+                    best, best_score = route, default_min_dist
+
+                    # 1) Prefer a genuine OSRM alternative if one exists and clears the block.
+                    for cand in candidates[1:]:
+                        cand_min_dist = min(
+                            _route_min_distance_km(cand["geometry"], b["lat"], b["lon"])
+                            for b in blocked_roads.values()
+                        )
+                        if cand_min_dist > best_score:
+                            best, best_score = cand, cand_min_dist
+                    if best is not route and best_score >= BLOCK_RADIUS_KM:
+                        route, rerouted, reroute_method = best, True, "osrm_alternative"
+
+                    # 2) No real alternative road: force a detour waypoint around the nearest
+                    #    block and see if OSRM can find a materially different path via it.
+                    #    Clearly labelled as a demo-only detour, not a verified safe road.
+                    if not rerouted:
+                        blocker = min(
+                            blocked_roads.values(),
+                            key=lambda b: _route_min_distance_km(route["geometry"], b["lat"], b["lon"]),
+                        )
+                        bearing = _nearest_segment_bearing(route["geometry"]["coordinates"], blocker["lat"], blocker["lon"])
+                        for offset_km in (0.6, 1.2, 2.0, 3.5):
+                            for side in (1, -1):
+                                off_lat, off_lon = _offset_point_km(
+                                    blocker["lat"], blocker["lon"], bearing + side * 1.5708, offset_km
+                                )
+                                detour = await _osrm_route(
+                                    client, base_url,
+                                    [(start_lat, start_lon), (off_lat, off_lon), (dest_lat, dest_lon)],
+                                )
+                                if detour is None:
+                                    continue
+                                cand = detour["routes"][0]
+                                cand_score = min(
+                                    _route_min_distance_km(cand["geometry"], b["lat"], b["lon"])
+                                    for b in blocked_roads.values()
+                                )
+                                if cand_score > best_score:
+                                    best, best_score = cand, cand_score
+                            if best_score >= BLOCK_RADIUS_KM:
+                                break  # stop widening once we've found a real detour
+                        if best is not route and best_score >= BLOCK_RADIUS_KM:
+                            route, rerouted, reroute_method = best, True, "waypoint_detour"
+
+                    if rerouted:
+                        avoided_labels = [b["label"] for b in blocked_roads.values()]
+
+            warning = "OSM road route to selected facility (Research routing using OpenStreetMap road network — not an emergency navigation service)."
+            if reroute_method == "waypoint_detour":
+                warning += " Rerouted via a demo detour waypoint around the reported block — not an independently-verified alternate road."
+            elif block_acknowledged and not rerouted:
+                warning += " A road block was reported near this route but no clear alternate road could be found — proceed with caution."
+
             return {
                 **RESEARCH_HEADER,
                 "type": "Feature",
@@ -711,9 +833,33 @@ async def evacuation_route(start_lat: float, start_lon: float, dest_lat: float, 
                     "duration_s": route.get("duration", 0),
                     "provider": "OSRM",
                     "provenance": "OpenStreetMap road network",
-                    "warning": "OSM road route to selected facility (Research routing using OpenStreetMap road network — not an emergency navigation service)."
+                    "warning": warning,
+                    "rerouted": rerouted,
+                    "reroute_method": reroute_method,
+                    "block_acknowledged": block_acknowledged,
+                    "avoided": avoided_labels,
                 }
             }
     except Exception as e:
         return {**RESEARCH_HEADER, "error": f"Routing exception: {str(e)}"}
+
+
+@router.get("/routing/health", summary="OSRM routing service reachability check")
+async def routing_health():
+    """Lightweight liveness probe for the Technical/Admin data-source health
+    panel — a real request against a tiny fixed pair of coordinates, not a
+    cached/assumed status."""
+    import httpx, os, time
+    base_url = os.getenv("ROUTING_BASE_URL", "http://router.project-osrm.org")
+    url = f"{base_url}/route/v1/driving/76.9327,31.7119;77.0184,31.79778?overview=false"
+    started = time.monotonic()
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=6.0)
+        elapsed_ms = round((time.monotonic() - started) * 1000)
+        if resp.status_code == 200 and resp.json().get("code") == "Ok":
+            return {"status": "AVAILABLE", "provider": "OSRM", "latency_ms": elapsed_ms}
+        return {"status": "UNREACHABLE", "provider": "OSRM", "detail": f"HTTP {resp.status_code}"}
+    except Exception as e:
+        return {"status": "UNREACHABLE", "provider": "OSRM", "detail": str(e)}
 

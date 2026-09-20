@@ -9,6 +9,20 @@
   font-family: "Inter", "Segoe UI", system-ui, sans-serif;
 }
 
+/* ── Cloudburst toast: brief, non-blocking, top-center ───────────────────
+   Single animation covers slide/fade-in, hold, and fade-out so the toast
+   never needs a second removal timer to look right — it just needs to be
+   unmounted once the animation's duration has elapsed. */
+@keyframes cloudburst-toast-inout {
+  0%   { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+  6%   { opacity: 1; transform: translateX(-50%) translateY(0); }
+  88%  { opacity: 1; transform: translateX(-50%) translateY(0); }
+  100% { opacity: 0; transform: translateX(-50%) translateY(-8px); }
+}
+.cloudburst-toast {
+  animation: cloudburst-toast-inout 4s ease forwards;
+}
+
 /* ── Experimental banner ──────────────────────────────────────────────── */
 .experimental-banner {
   display: flex;

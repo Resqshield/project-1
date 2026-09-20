@@ -35,6 +35,8 @@ try:
 except ImportError:
     _REAL_FLOOD_AVAILABLE = False
 
+from backend.routes.demo_operations import router as demo_operations_router
+
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -225,6 +227,11 @@ if _REAL_FLOOD_AVAILABLE:
     app.include_router(real_flood_router)
     log.info("Real flood inference registered at /api/real/flood/ [EXPERIMENTAL_BASELINE_ONLY]")
 
+# Register the shared four-map demo state API (SIMULATION/DEMO only, never
+# touches GloFAS/OSM/OSRM — see backend/demo_state.py)
+app.include_router(demo_operations_router)
+log.info("Demo operations API registered at /api/demo/ [SIMULATION_ONLY]")
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _validate_risk(value: Optional[str], param_name: str) -> Optional[str]:
@@ -328,3 +335,7 @@ async def get_mountain_locations():
     res = [r for r in _records if r["district"] in MOUNTAIN_DISTRICTS]
     res.sort(key=lambda r: (r["state"], r["district"]))
     return res
+
+# Demo shared state (villages / road blocks / field assignments) now lives in
+# backend/demo_state.py, served via backend/routes/demo_operations.py
+# (/api/demo/*, registered above).
