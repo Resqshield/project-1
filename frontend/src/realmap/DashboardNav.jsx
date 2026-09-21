@@ -6,10 +6,10 @@
  */
 
 const VIEWS = [
-  { key: "technical", label: "Technical/Admin", href: "/technical" },
-  { key: "authority", label: "Authority", href: "/realmap" },
-  { key: "citizen", label: "Citizen", href: "/citizen" },
-  { key: "field", label: "Field Worker", href: "/field" },
+  { key: "technical", label: "Technical/Admin", href: "?view=technical" },
+  { key: "authority", label: "Authority", href: "?view=authority" },
+  { key: "citizen", label: "Citizen", href: "?view=citizen" },
+  { key: "field", label: "Field Worker", href: "?view=field" },
 ];
 
 export default function DashboardNav({ active }) {
