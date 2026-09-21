@@ -153,7 +153,7 @@ a { color: var(--accent-blue); text-decoration: none; }
 /* ── Risk Toggle ───────────────────────────────────────────── */
 .risk-toggle {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr 1fr 1fr;
   gap: 0.4rem;
   background: var(--bg-input);
   border: 1px solid var(--border);

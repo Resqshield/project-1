@@ -1,4 +1,4 @@
-import { Droplets, Mountain } from 'lucide-react';
+import { Droplets, Mountain, Map } from 'lucide-react';
 
 /**
  * RiskToggle — controls which risk type the UI emphasises.
@@ -25,6 +25,16 @@ export default function RiskToggle({ riskMode, onChange }) {
         <Mountain size={16} />
         Landslide Risk
       </button>
+      <a
+        href="https://resqshield.github.io/project-1/"
+        target="_blank"
+        rel="noreferrer"
+        className="toggle-btn"
+        style={{ textDecoration: 'none' }}
+      >
+        <Map size={16} />
+        Live Map
+      </a>
     </div>
   );
 }
